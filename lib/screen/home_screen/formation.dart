@@ -2,6 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:yafintech/screen/fenetre/audio_widget.dart';
+import 'package:yafintech/screen/fenetre/image_widget.dart';
+import 'package:yafintech/screen/fenetre/video_widget.dart';
 import 'package:yafintech/services/auth_service.dart';
 
 class Formation extends StatefulWidget {
@@ -13,7 +16,6 @@ class Formation extends StatefulWidget {
 
 class _FormationState extends State<Formation> {
   Map<String, dynamic>? formationData;
-  Map<String, dynamic>? ressourcesData;
 
   void getEventeData() async {
     Map<String, dynamic>? formation = await getEvent();
@@ -40,11 +42,83 @@ class _FormationState extends State<Formation> {
         child: ListView(
           shrinkWrap: true,
           children: [
-            /* formationData != null
-                  ? buildFormationList()
-                  : Center(child : CircularProgressIndicator()),*/
+            if (formationData != null && formationData!['data'] != null)
+              for (final element in formationData!['data'] as List)
+                if (element is Map && element['type'] != null)
+                  if (element['type'] == "video")
+                    VideoCard(
+                      videoUrl: element['file_url'] ?? 'https://storage.googleapis.com/exoplayer-test-media-1/mp4/android-screens-10s.mp4',
+                      title: element['title'] ?? 'Sans titre',
+                      description: element['description'] ?? '',
+                      is_free: element['is_free'] ?? true,
+                      price: element['price'] ?? 00,
+                    )
+                  else if (element['type'] == "image")
+                    ImageCard(
+                      imagePath: element['file_url'] ?? '',
+                      imageName: element['title'] ?? 'Sans titre',
+                      imageDescription: element['descripion'] ?? '',
+                      is_free: element['is_free'] ?? true,
+                      price: element['price'] ?? '00',
+                    ),
+            VideoCard(
+              videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4',
+              title: 'Sans titre',
+              description: 'de la description',
+              is_free: true,
+              price: '00',
+            ),
+            VideoCard(
+              videoUrl: 'https://storage.googleapis.com/exoplayer-test-media-1/mp4/android-screens-10s.mp4',
+              title: 'Sans titre',
+              description: '',
+              is_free: false,
+              price: '5000',
+            ),
+            ImageCard(
+              imagePath: 'https://picsum.photos/seed/tech/400/200',
+              imageName: 'Sans titre',
+              imageDescription: 'la description',
+              is_free: true,
+              price: '00',
+            ),
+            AudioCard(
+              audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
+              title: 'title',
+              description: 'description',
+              is_free: true,
+              price: '00',
+            ),
+            AudioCard(
+              audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+              title: 'title',
+              description: 'description',
+              is_free: false,
+              price: '08',
+            ),
+            AudioCard(
+              audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3',
+              title: 'title',
+              description: 'description',
+              is_free: true,
+              price: '00',
+            ),
+            AudioCard(
+              audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-11.mp3',
+              title: 'title',
+              description: 'description',
+              is_free: true,
+              price: '00',
+            ),
+            ImageCard(
+              imagePath: 'https://picsum.photos/id/10/400/200',
+              imageName: 'Sans titre',
+              imageDescription: 'description',
+              is_free: false,
+              price: '1200',
+            ),
 
-            for (int i = 0; i < 16; i++) FormationList(),
+            // for (int i = 0; i < 16; i++) FormationList(),
           ],
         ),
       ),

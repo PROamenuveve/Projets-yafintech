@@ -85,7 +85,7 @@ class _RessourceState extends State<Ressource> {
               title: 'Sans titre',
               description: '',
               is_free: false,
-              price: '10',
+              price: '2500',
             ),
             ImageCard(
               imagePath: 'https://picsum.photos/seed/tech/400/200',
@@ -127,10 +127,10 @@ class _RessourceState extends State<Ressource> {
               imageName: 'Sans titre',
               imageDescription: 'description',
               is_free: false,
-              price: '12',
+              price: '1000',
             ),
 
-            for (int i = 0; i < 16; i++) RessourceList(),
+            //for (int i = 0; i < 16; i++) RessourceList(),
           ],
         ),
       ),
