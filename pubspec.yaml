@@ -43,7 +43,7 @@ dependencies:
   intl: ^0.20.3
   image_picker: ^1.2.0
   shared_preferences: ^2.5.3
-  path_provider: ^2.1.5
+  path_provider: ^2.1.6
   flutter_secure_storage: ^11.0.0
   mobile_scanner: ^7.4.0
   connectivity_plus: ^7.0.0
@@ -53,6 +53,13 @@ dependencies:
   audio_session: ^0.1.19
   rxdart: ^0.27.7
   audioplayers: ^6.5.0
+  geolocator: ^14.0.2
+  qr_flutter: ^4.1.0
+  flutter_vlc_player: ^7.4.1
+  web_socket_channel: ^3.0.1
+  syncfusion_flutter_pdfviewer: ^34.2.8
+  gal: ^2.3.3
+  open_filex: ^4.7.0
 
 dev_dependencies:
   flutter_test:
@@ -107,3 +114,6 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+
+

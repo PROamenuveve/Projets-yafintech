@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yafintech/core/theme/app_color.dart';
 import 'package:yafintech/screen/home_screen/infos.dart';
+import 'package:yafintech/services/auth_service.dart';
 import 'package:yafintech/services/secure_storage.dart';
+import 'package:yafintech/services/reload_service.dart';
 
 class Acceuil extends StatefulWidget {
   const Acceuil({super.key});
@@ -11,47 +13,134 @@ class Acceuil extends StatefulWidget {
   State<Acceuil> createState() => _AcceuilState();
 }
 
-class _AcceuilState extends State<Acceuil> {
+class _AcceuilState extends State<Acceuil> with SingleTickerProviderStateMixin {
+  Map<String, dynamic> jsUser = {};
+  final LiveServiceActive _liveService = LiveServiceActive();
+  Map<String, dynamic>? _live;
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    userGet();
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+
+    _pulseAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    _liveService.liveStream.listen((live) {
+      if (!mounted) return;
+
+      setState(() {
+        _live = live;
+        print('💿💿💿💿💿💿💿💿💿  $_live');
+      });
+
+      // ✅ 3. CRUCIAL : démarrer/arrêter l'animation selon le statut
+      _updateAnimation();
+    });
+
+    // ✅ 4. Démarrer le polling
+    _liveService.demarrer(interval: const Duration(seconds: 20));
+  }
+
+  void userGet() async {
+    try {
+      final data = await getUser();
+
+      if (!mounted) return;
+
+      setState(() {
+        jsUser = Map<String, dynamic>.from(data);
+      });
+
+      debugPrint('✅ jsUser mis à jour : ${jsUser?['name']}');
+    } catch (e) {
+      debugPrint('❌ Erreur userGet : $e');
+    }
+  }
+
+  bool _isLiveActive() {
+    if (_live == null) return false;
+    final data = _live!['data'];
+    if (data == null || data is! Map) return false;
+    return data['status'] == 'live';
+  }
+
+  void _updateAnimation() {
+    if (_isLiveActive()) {
+      // ✅ Live actif → démarrer la pulsation
+      if (!_pulseController.isAnimating) {
+        _pulseController.repeat(reverse: true);
+      }
+    } else {
+      // ❌ Pas de live → arrêter la pulsation
+      if (_pulseController.isAnimating) {
+        _pulseController.stop();
+        _pulseController.reset();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        // leading: IconButton( onPressed: () {}, icon: Icon(Icons.menu), ),
         title: Text(
-          'Nom du fidele',
+          jsUser?['name'] ?? 'Nom ',
           maxLines: 3,
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
             onPressed: () {
-              context.push('/scanner');
+              context.push('/live');
             },
-            icon: Icon(Icons.qr_code_scanner),
+            icon: _isLiveActive()
+                ? ScaleTransition(
+                    scale: _pulseAnimation,
+                    child: const Icon(
+                      Icons.circle,
+                      size: 25,
+                      color: Colors.green,
+                    ),
+                  )
+                : const Icon(
+                    Icons.circle,
+                    size: 25,
+                    color: Color.fromARGB(255, 147, 87, 83),
+                  ),
           ),
           IconButton(
-            onPressed: () async {
-              //await SecureStorageService.logout();
-              //context.go('/connexion');
-            },
-            icon: Icon(Icons.gps_not_fixed),
+            onPressed: () => context.push('/scanner'),
+            icon: const Icon(Icons.qr_code_scanner),
           ),
-          IconButton(onPressed: () {}, icon: Icon(Icons.more_vert)),
+          IconButton(
+            onPressed: () async {},
+            icon: const Icon(Icons.gps_not_fixed),
+          ),
+          IconButton(onPressed: () {}, icon: const Icon(Icons.more_vert)),
         ],
       ),
-
       body: Container(
         color: const Color.fromARGB(255, 205, 200, 216),
         child: Column(
           children: [
             Container(
-              padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
               child: Column(
                 children: [
                   TextField(
                     decoration: InputDecoration(
-                      prefixIcon: Icon(Icons.search),
+                      prefixIcon: const Icon(Icons.search),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(
@@ -61,19 +150,26 @@ class _AcceuilState extends State<Acceuil> {
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(width: 3),
+                        borderSide: const BorderSide(width: 3),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            SingleChildScrollView(
-              child: Column(children: [const MonCarrousel()]),
+            const SingleChildScrollView(
+              child: Column(children: [MonCarrousel()]),
             ),
           ],
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _liveService.dispose();
+    super.dispose();
   }
 }

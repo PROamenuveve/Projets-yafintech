@@ -1,28 +1,40 @@
-import 'package:flutter/material.dart';
-import 'package:yafintech/services/auth_service.dart';
+import 'dart:io';
 
-class ImageCard extends StatefulWidget {
-  final String imagePath;
-  final String imageName;
-  final String imageDescription;
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:yafintech/services/auth_service.dart';
+import 'package:gal/gal.dart';
+import 'package:yafintech/services/telecharge_service.dart';
+
+class PdfCard extends StatefulWidget {
+  final String pdfCover;
+  final String pdfPath;
+  final String pdfName;
+  final String pdfDescription;
   final bool is_free;
   final String price;
+  final Map<String, dynamic> infos;
 
-  const ImageCard({
+  const PdfCard({
     super.key,
-    required this.imagePath,
-    required this.imageName,
-    required this.imageDescription,
+    required this.pdfPath,
+    required this.pdfCover,
+    required this.pdfName,
+    required this.pdfDescription,
     required this.is_free,
     required this.price,
+    required this.infos,
   });
 
   @override
-  State<ImageCard> createState() => _ImageCardState();
+  State<PdfCard> createState() => _PdfCardState();
 }
 
-class _ImageCardState extends State<ImageCard> {
-  bool visible = false;
+class _PdfCardState extends State<PdfCard> {
+  bool visible = true;
   bool connected = false;
 
   bool _isLoading = true;
@@ -33,14 +45,6 @@ class _ImageCardState extends State<ImageCard> {
   // ============================================================
   // VISIBILITE
   // ============================================================
-
-  void changeVisible() {
-    if (!connected) return;
-
-    setState(() {
-      visible = !visible;
-    });
-  }
 
   // ============================================================
   // VERIFICATION CONNEXION
@@ -66,14 +70,14 @@ class _ImageCardState extends State<ImageCard> {
   void initState() {
     super.initState();
 
-    _loadImage();
+    _loadPdf();
   }
 
   // ============================================================
   // CHARGEMENT IMAGE
   // ============================================================
 
-  Future<void> _loadImage() async {
+  Future<void> _loadPdf() async {
     final int currentLoad = ++_loadId;
 
     if (!mounted) return;
@@ -88,12 +92,12 @@ class _ImageCardState extends State<ImageCard> {
       // VERIFICATION URL
       // ----------------------------------------------------------
 
-      final uri = Uri.tryParse(widget.imagePath);
+      final uri = Uri.tryParse(widget.pdfCover);
 
       if (uri == null ||
           !uri.hasScheme ||
           (uri.scheme != 'http' && uri.scheme != 'https')) {
-        throw Exception('URL image invalide');
+        throw Exception('URL pdf invalide');
       }
 
       // ----------------------------------------------------------
@@ -134,7 +138,7 @@ class _ImageCardState extends State<ImageCard> {
         _hasError = false;
       });
     } catch (e) {
-      debugPrint('ERREUR IMAGE : $e');
+      debugPrint('ERREUR PDF : $e');
 
       if (!mounted || currentLoad != _loadId) {
         return;
@@ -154,7 +158,7 @@ class _ImageCardState extends State<ImageCard> {
   Future<void> _retry() async {
     if (_isLoading) return;
 
-    await _loadImage();
+    await _loadPdf();
   }
 
   // ============================================================
@@ -180,7 +184,7 @@ class _ImageCardState extends State<ImageCard> {
               const SizedBox(height: 12),
 
               const Text(
-                'Image indisponible',
+                'pdf indisponible',
                 textAlign: TextAlign.center,
 
                 style: TextStyle(
@@ -240,7 +244,7 @@ class _ImageCardState extends State<ImageCard> {
             SizedBox(height: 15),
 
             Text(
-              'Chargement de l’image...',
+              'Chargement du pdf...',
               style: TextStyle(color: Colors.white70, fontSize: 14),
             ),
           ],
@@ -260,7 +264,18 @@ class _ImageCardState extends State<ImageCard> {
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: InkWell(
-        onTap: changeVisible,
+        onTap: () {
+          if (widget.is_free) {
+            context.push(
+              '/pdf',
+              extra: {
+                'pdfPath': widget.pdfPath,
+                'pdfName': widget.pdfName,
+                'pdfDescription': widget.pdfDescription,
+              },
+            );
+          }
+        },
         child: Stack(
           children: [
             SizedBox(
@@ -273,7 +288,7 @@ class _ImageCardState extends State<ImageCard> {
                     : _isLoading
                     ? _buildLoading()
                     : Image.network(
-                        widget.imagePath,
+                        widget.pdfCover,
 
                         // 100% de la largeur
                         width: double.infinity,
@@ -293,7 +308,7 @@ class _ImageCardState extends State<ImageCard> {
                         // ERREUR DE TELECHARGEMENT
                         // ==================================================
                         errorBuilder: (context, error, stackTrace) {
-                          debugPrint('Erreur chargement image : $error');
+                          debugPrint('Erreur chargement pdf : $error');
 
                           return _buildError();
                         },
@@ -304,7 +319,7 @@ class _ImageCardState extends State<ImageCard> {
             // ======================================================
             // INFORMATIONS
             // ======================================================
-            if (visible && !_hasError && !_isLoading)
+            if (!_hasError && !_isLoading)
               Positioned.fill(
                 child: Padding(
                   padding: const EdgeInsets.all(12),
@@ -316,7 +331,7 @@ class _ImageCardState extends State<ImageCard> {
                           Column(
                             children: [
                               Text(
-                                widget.imageName,
+                                widget.pdfName,
                                 textAlign: TextAlign.center,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
@@ -328,7 +343,7 @@ class _ImageCardState extends State<ImageCard> {
                                 ),
                               ),
                               Text(
-                                widget.imageDescription,
+                                widget.pdfDescription,
                                 textAlign: TextAlign.center,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
@@ -347,7 +362,13 @@ class _ImageCardState extends State<ImageCard> {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: IconButton(
-                                onPressed: () {},
+                                onPressed: () {
+                                  telechargerPdf(
+                                    context,
+                                    widget.pdfPath,
+                                    widget.pdfName,
+                                  );
+                                },
                                 icon: Icon(
                                   Icons.download,
                                   color: Colors.white,
@@ -363,15 +384,18 @@ class _ImageCardState extends State<ImageCard> {
                               ),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 5,
+                                  horizontal: 4,
+                                  vertical: 2,
                                 ),
-                                child: Text(
-                                  '${widget.price} FCFA',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
+                                child: TextButton(
+                                  onPressed: () {},
+                                  child: Text(
+                                    '${widget.price} FCFA',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                               ),

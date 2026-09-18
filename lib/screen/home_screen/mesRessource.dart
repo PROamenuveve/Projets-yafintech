@@ -9,16 +9,16 @@ import 'package:yafintech/services/auth_service.dart';
 import 'package:video_player/video_player.dart';
 import 'package:yafintech/services/reload_service.dart';
 
-class Ressource extends StatefulWidget {
-  const Ressource({super.key});
+class MesRessource extends StatefulWidget {
+  const MesRessource({super.key});
 
   @override
-  State<Ressource> createState() => _RessourceState();
+  State<MesRessource> createState() => _MesRessourceState();
 }
 
-class _RessourceState extends State<Ressource> {
+class _MesRessourceState extends State<MesRessource> {
   Map<String, dynamic>? ressourcesData;
-  final getRessourceService _ressourceservice = getRessourceService();
+  final getMyRessourceService _ressourceservice = getMyRessourceService();
   StreamSubscription? _streamSubscription;
 
   @override
@@ -68,7 +68,7 @@ class _RessourceState extends State<Ressource> {
               height: 120,
               width: double.infinity,
               child: Text(
-                'aucune ressource n \'est disponible ',
+                'aucune ressource telechargé ',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
             )

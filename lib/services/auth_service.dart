@@ -1,11 +1,35 @@
 import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:yafintech/screen/fenetre/home.dart';
 import 'package:yafintech/services/secure_storage.dart';
 
 String baseurl =
-    "https://b348-2c0f-f0f8-855-4f00-a9e5-72bc-3d37-3913.ngrok-free.app";
+    "https://95d0-2c0f-f0f8-855-4f00-901f-a468-f47c-d798.ngrok-free.app/api";
+String storageUrl =
+    'http://95d0-2c0f-f0f8-855-4f00-901f-a468-f47c-d798.ngrok-free.app/storage';
+
+Future<Map<String, dynamic>> getUser() async {
+  final data = await SecureStorageService.getAccessUser();
+
+  if (data == null || data.isEmpty) {
+    return {};
+  }
+
+  return jsonDecode(data) as Map<String, dynamic>;
+}
+
+Future<String> geToken() async {
+  final token = await SecureStorageService.getAccessToken();
+
+  if (token == null || token.isEmpty) {
+    return '';
+  }
+  return token;
+}
 
 Future<bool> checkconnecte() async {
   final connectivityResult = await Connectivity().checkConnectivity();
@@ -18,7 +42,7 @@ Future<bool> login(String email, String password) async {
   print("$email,  🧶🧶🧶🧶🧶🧶🧶  $password ");
   try {
     final response = await http.post(
-      Uri.parse("$baseurl/api/login"),
+      Uri.parse("$baseurl/login"),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -50,7 +74,7 @@ Future<bool> login(String email, String password) async {
 Future<String> register(Map<String, dynamic> donnes) async {
   try {
     final response = await http.post(
-      Uri.parse('${baseurl}/api/register'),
+      Uri.parse('${baseurl}/register'),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -87,7 +111,7 @@ Future<void> register_Menber(Map<String, dynamic> donnes) async {
   print('$nn 🧶🧶🧶🧶🧶');
   try {
     final response = await http.post(
-      Uri.parse('${baseurl}/api/members'),
+      Uri.parse('${baseurl}/members'),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -115,7 +139,7 @@ Future<void> register_Menber(Map<String, dynamic> donnes) async {
 Future<void> role_fonction() async {
   try {
     final response = await http.get(
-      Uri.parse('$baseurl/api/super-admin/roles-and-fonctions'),
+      Uri.parse('$baseurl/super-admin/roles-and-fonctions'),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -138,7 +162,7 @@ Future<void> role_fonction() async {
   }
 }
 
-Future<bool> Qr_presence(String qr) async {
+Future<int> Qr_presence(String qr, double latitude, double longitude) async {
   final user = await SecureStorageService.getAccessUser();
 
   final jsUser = jsonDecode(user ?? '{}');
@@ -148,7 +172,7 @@ Future<bool> Qr_presence(String qr) async {
   );
   try {
     final response = await http.post(
-      Uri.parse('$baseurl/api/attendance/scan-public'),
+      Uri.parse('$baseurl/attendance/scan-public'),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -156,6 +180,8 @@ Future<bool> Qr_presence(String qr) async {
       body: jsonEncode({
         'qr_token': qr,
         'member_code': jsUser['member']['member_code'],
+        'lat': latitude,
+        'lng': longitude,
       }),
     );
     print('🤖🤖🤖🤖🤖🤖🤖🤖🤖🤖  ${response.statusCode}');
@@ -164,15 +190,15 @@ Future<bool> Qr_presence(String qr) async {
 
       //print('🤖🤖🤖🤖🤖🤖🤖🤖🤖🤖');
       print(data);
-      return true;
+      return response.statusCode;
     } else {
       print('Erreur : ${response.statusCode}');
       print(response.body);
-      return false;
+      return response.statusCode;
     }
   } catch (e) {
     print('Erreur réseau : $e');
-    return false;
+    return 0;
   }
 }
 
@@ -187,7 +213,7 @@ Future<void> updateProfile(Map<String, dynamic> updatedData) async {
 
   try {
     final response = await http.put(
-      Uri.parse('$baseurl/api/members/$userId'),
+      Uri.parse('$baseurl/members/$userId'),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -210,15 +236,14 @@ Future<void> updateProfile(Map<String, dynamic> updatedData) async {
   }
 }
 
-Future<Map<String, dynamic>> getEvent() async {
-  final token = await SecureStorageService.getAccessToken();
+Future<Map<String, dynamic>> getFormation() async {
   try {
     final response = await http.get(
-      Uri.parse('$baseurl/api/formations'),
+      Uri.parse('$baseurl/formations'),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
+        'Authorization': 'Bearer $geToken',
       },
     );
 
@@ -243,19 +268,18 @@ Future<Map<String, dynamic>> getEvent() async {
 Future<Map<String, dynamic>> getRessources() async {
   try {
     final response = await http.get(
-      Uri.parse('$baseurl/api/resources'),
+      Uri.parse('$baseurl/resources'),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'Authorization':
-            'Bearer ${await SecureStorageService.getAccessToken()}',
+        'Authorization': 'Bearer $geToken',
       },
     );
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       print('Ressources récupérées avec succès');
-      //print(data);
+      print(data);
       return data;
     } else {
       print(
@@ -267,5 +291,32 @@ Future<Map<String, dynamic>> getRessources() async {
   } catch (e) {
     print('Erreur réseau : $e');
     return {'error': 'Erreur réseau'};
+  }
+}
+
+Future<void> resourceCategorie() async {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseurl/resource-categories'),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $geToken',
+      },
+
+      //body: jsonEncode({}),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      print('🤖🤖🤖🤖🤖🤖🤖🤖🤖🤖');
+      print(data);
+    } else {
+      print('Erreur : ${response.statusCode}');
+      print(response.body);
+    }
+  } catch (e) {
+    print('Erreur réseau : $e');
   }
 }

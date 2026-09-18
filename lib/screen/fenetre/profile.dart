@@ -22,10 +22,10 @@ class _ProfilScreenState extends State<ProfilePage> {
   Map<String, dynamic> newUser = {};
   File? _profileImage;
 
-  void getUser() async {
-    final data = await SecureStorageService.getAccessUser();
+  void userGet() async {
+    final data = await getUser();
     setState(() {
-      jsUser = jsonDecode(data ?? '{}');
+      jsUser = Map<String, dynamic>.from(data);
     });
 
     print("🖇️🖇️🖇️🖇️🖇️🖇️🖇️🖇️🖇️🖇️🖇️🖇️🖇️: $jsUser");
@@ -34,7 +34,7 @@ class _ProfilScreenState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    getUser();
+    userGet();
   }
 
   @override
@@ -58,6 +58,14 @@ class _ProfilScreenState extends State<ProfilePage> {
             context.pop('/');
           },
         ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.qr_code),
+            onPressed: () {
+              context.push('/qrPage');
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(2),
@@ -307,7 +315,7 @@ class _ProfilScreenState extends State<ProfilePage> {
           ),
           TextButton(
             onPressed: () {
-              context.push('/connexion');
+              context.go('/connexion');
               logout();
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(

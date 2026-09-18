@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:yafintech/services/auth_service.dart';
 
 class AudioCard extends StatefulWidget {
   final String audioUrl;
@@ -118,9 +119,9 @@ class _AudioCardState extends State<AudioCard> {
     });
 
     try {
-      // --------------------------------------------------------
+      // ============================================================
       // VERIFICATION URL
-      // --------------------------------------------------------
+      // ============================================================
 
       final uri = Uri.tryParse(widget.audioUrl);
 
@@ -132,29 +133,54 @@ class _AudioCardState extends State<AudioCard> {
 
       debugPrint('Chargement audio : ${widget.audioUrl}');
 
-      // --------------------------------------------------------
+      // ============================================================
+      // VERIFICATION INTERNET
+      // ============================================================
+
+      final hasConnection = await checkconnecte();
+
+      if (!mounted || currentLoad != _loadId) {
+        return;
+      }
+
+      // ============================================================
+      // PAS INTERNET
+      // ============================================================
+
+      if (!hasConnection) {
+        debugPrint('Pas de connexion Internet');
+
+        setState(() {
+          _isLoading = false;
+          _hasError = true;
+        });
+
+        return;
+      }
+
+      // ============================================================
       // ARRETER L'ANCIEN AUDIO
-      // --------------------------------------------------------
+      // ============================================================
 
       await _player.stop();
 
-      // --------------------------------------------------------
+      // ============================================================
       // VOLUME
-      // --------------------------------------------------------
+      // ============================================================
 
       await _player.setVolume(_volume);
 
-      // --------------------------------------------------------
-      // CHARGEMENT AVEC TIMEOUT
-      // --------------------------------------------------------
+      // ============================================================
+      // CHARGEMENT AUDIO
+      // ============================================================
 
       await _player
           .setSourceUrl(widget.audioUrl)
           .timeout(const Duration(seconds: 8));
 
-      // --------------------------------------------------------
+      // ============================================================
       // VERIFICATION
-      // --------------------------------------------------------
+      // ============================================================
 
       if (!mounted || currentLoad != _loadId) {
         return;
@@ -165,9 +191,9 @@ class _AudioCardState extends State<AudioCard> {
         _hasError = false;
       });
 
-      // --------------------------------------------------------
+      // ============================================================
       // AUTOPLAY
-      // --------------------------------------------------------
+      // ============================================================
 
       if (widget.autoPlay && mounted) {
         try {
@@ -484,68 +510,6 @@ class _AudioCardState extends State<AudioCard> {
             const Spacer(),
 
             // ==================================================
-            // BARRE DE PROGRESSION
-            // ==================================================
-            SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-              ),
-
-              child: Slider(
-                min: 0,
-
-                max: _duration.inMilliseconds > 0
-                    ? _duration.inMilliseconds.toDouble()
-                    : 1,
-
-                value: _position.inMilliseconds.toDouble().clamp(
-                  0,
-                  _duration.inMilliseconds > 0
-                      ? _duration.inMilliseconds.toDouble()
-                      : 1,
-                ),
-
-                onChanged: _duration.inMilliseconds <= 0
-                    ? null
-                    : (value) {
-                        setState(() {
-                          _position = Duration(milliseconds: value.toInt());
-                        });
-                      },
-
-                onChangeEnd: (value) async {
-                  try {
-                    await _player.seek(Duration(milliseconds: value.toInt()));
-                  } catch (e) {
-                    debugPrint('Erreur déplacement audio : $e');
-                  }
-                },
-              ),
-            ),
-
-            // ==================================================
-            // TEMPS
-            // ==================================================
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
-              children: [
-                Text(
-                  _formatDuration(_position),
-
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-
-                Text(
-                  _formatDuration(_duration),
-
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-              ],
-            ),
-
-            // ==================================================
             // CONTROLES
             // ==================================================
             Row(
@@ -578,11 +542,24 @@ class _AudioCardState extends State<AudioCard> {
                     ),
                   )
                 else
-                  TextButton(
-                    onPressed: () {},
-                    child: Text(
-                      '${widget.price} FCFA',
-                      style: TextStyle(color: Colors.red, fontSize: 20),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      child: Text(
+                        '${widget.price} FCFA',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
 
@@ -646,6 +623,66 @@ class _AudioCardState extends State<AudioCard> {
                   },
                 ), */
               ],
+            ),
+            // ==================================================
+            // TEMPS
+            // ==================================================
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+              children: [
+                Text(
+                  _formatDuration(_position),
+
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+
+                Text(
+                  _formatDuration(_duration),
+
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
+            ),
+            // ==================================================
+            // BARRE DE PROGRESSION
+            // ==================================================
+            SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+              ),
+
+              child: Slider(
+                min: 0,
+
+                max: _duration.inMilliseconds > 0
+                    ? _duration.inMilliseconds.toDouble()
+                    : 1,
+
+                value: _position.inMilliseconds.toDouble().clamp(
+                  0,
+                  _duration.inMilliseconds > 0
+                      ? _duration.inMilliseconds.toDouble()
+                      : 1,
+                ),
+
+                onChanged: _duration.inMilliseconds <= 0
+                    ? null
+                    : (value) {
+                        setState(() {
+                          _position = Duration(milliseconds: value.toInt());
+                        });
+                      },
+
+                onChangeEnd: (value) async {
+                  try {
+                    await _player.seek(Duration(milliseconds: value.toInt()));
+                  } catch (e) {
+                    debugPrint('Erreur déplacement audio : $e');
+                  }
+                },
+              ),
             ),
           ],
         ),

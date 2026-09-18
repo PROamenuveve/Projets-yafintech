@@ -353,7 +353,11 @@ class _VideoCardState extends State<VideoCard> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.wifi_off, color: Colors.white70, size: 50),
+              const Icon(
+                Icons.video_library_outlined,
+                color: Colors.white70,
+                size: 48,
+              ),
 
               const SizedBox(height: 12),
 
@@ -537,23 +541,13 @@ class _VideoCardState extends State<VideoCard> {
                                   ),
                                 )
                               else
-                                DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    color: Colors.red,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 5,
-                                    ),
-                                    child: Text(
-                                      '${widget.price} FCFA',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                TextButton(
+                                  onPressed: () {},
+                                  child: Text(
+                                    '${widget.price} FCFA',
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontSize: 20,
                                     ),
                                   ),
                                 ),

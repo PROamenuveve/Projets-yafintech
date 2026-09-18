@@ -1,21 +1,28 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:yafintech/screen/auth/connexion.dart';
-import 'package:yafintech/screen/auth/inscription.dart';
-import 'package:yafintech/screen/auth/inscription_local.dart';
-import 'package:yafintech/screen/auth/inscription_mail.dart';
-import 'package:yafintech/screen/auth/inscription_nom.dart';
-import 'package:yafintech/screen/auth/inscription_profile.dart';
-import 'package:yafintech/screen/auth/inscription_statut.dart';
-import 'package:yafintech/screen/auth/password.dart';
-import 'package:yafintech/screen/fenetre/fn.dart';
-import 'package:yafintech/screen/fenetre/home.dart';
-import 'package:yafintech/screen/fenetre/message.dart';
-import 'package:yafintech/screen/fenetre/scanner.dart';
-import 'package:yafintech/screen/fenetre/profile.dart';
-import 'package:yafintech/services/audio_handler.dart';
-import 'package:yafintech/services/secure_storage.dart';
+import 'package:yafintech/screen/fenetre/pdf_page.dart';
+import 'package:yafintech/screen/fenetre/pdf_widget.dart';
+import 'package:yafintech/screen/home_screen/ongle.dart';
+
+import "screen/auth/connexion.dart";
+import 'screen/auth/inscription.dart';
+import 'screen/auth/inscription_local.dart';
+import 'screen/auth/inscription_mail.dart';
+import 'screen/auth/inscription_nom.dart';
+import 'screen/auth/inscription_profile.dart';
+import 'screen/auth/inscription_statut.dart';
+import 'screen/auth/password.dart';
+import 'screen/fenetre/fn.dart';
+import 'screen/fenetre/home.dart';
+import 'screen/fenetre/live.dart';
+import 'screen/fenetre/live_page.dart';
+import 'screen/fenetre/message.dart';
+import 'screen/fenetre/qr_page.dart';
+import 'screen/fenetre/scanner.dart';
+import 'screen/fenetre/profile.dart';
+import 'services/audio_handler.dart';
+import 'services/secure_storage.dart';
 
 late GoRouter routes;
 late MyAudioHandler audioHandler;
@@ -74,6 +81,21 @@ void main() async {
       GoRoute(path: '/message', builder: (context, state) => Message()),
       GoRoute(path: '/scanner', builder: (context, state) => ScannerPage()),
       GoRoute(path: '/profile', builder: (context, state) => ProfilePage()),
+      GoRoute(path: '/live', builder: (context, state) => LivePage()),
+      GoRoute(path: '/lives', builder: (context, state) => LivePages()),
+      GoRoute(path: '/qrPage', builder: (context, state) => QrCodePage()),
+      GoRoute(
+        path: '/pdf',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+
+          return PdfPage(
+            pdfPath: extra['pdfPath'] ?? '',
+            pdfName: extra['pdfName'] ?? 'Document PDF',
+            pdfDescription: extra['pdfDescription'] ?? '',
+          );
+        },
+      ),
     ],
   );
 

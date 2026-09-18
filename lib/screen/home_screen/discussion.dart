@@ -17,7 +17,10 @@ class _DiscussionState extends State<Discussion> {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 133, 131, 145),
       appBar: AppBar(
-        backgroundColor: AppColors.couleur2,
+        title: Text(
+          'Discutions',
+          style: TextStyle(fontSize: 35, fontWeight: FontWeight.bold),
+        ),
         automaticallyImplyLeading: false,
         leading: null,
         actions: [
@@ -28,16 +31,16 @@ class _DiscussionState extends State<Discussion> {
                 print('object');
               });
             },
-            icon: Icon(Icons.search, color: Colors.white),
+            icon: Icon(Icons.search, color: Colors.black),
           ),
           IconButton(
             onPressed: () {},
-            icon: Icon(Icons.camera_alt, color: Colors.white),
+            icon: Icon(Icons.camera_alt, color: Colors.black),
           ),
 
           IconButton(
             onPressed: () {},
-            icon: Icon(Icons.more_vert, color: Colors.white),
+            icon: Icon(Icons.more_vert, color: Colors.black),
           ),
         ],
         //title: Text(' le nom'),

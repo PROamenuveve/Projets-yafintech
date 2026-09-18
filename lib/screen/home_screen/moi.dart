@@ -71,7 +71,7 @@ class _MoiState extends State<Moi> {
                   leading: Icon(Icons.logout),
                   title: Text('Déconnexion'),
                   onTap: () async {
-                    await SecureStorageService.logout();
+                    //await SecureStorageService.logout();
                     context.go('/connexion');
                   },
                 ),
