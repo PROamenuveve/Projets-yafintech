@@ -60,10 +60,15 @@ dependencies:
   syncfusion_flutter_pdfviewer: ^34.2.8
   gal: ^2.3.3
   open_filex: ^4.7.0
+  record: ^6.1.1
+  drift: ^2.35.0
+  drift_flutter: ^0.3.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  drift_dev: ^2.35.0
+  build_runner: ^2.16.1
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

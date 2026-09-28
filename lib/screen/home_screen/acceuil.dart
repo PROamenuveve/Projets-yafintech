@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:yafintech/core/theme/app_color.dart';
-import 'package:yafintech/screen/home_screen/infos.dart';
+import 'package:yafintech/screen/home_screen/carousel_page.dart';
 import 'package:yafintech/services/auth_service.dart';
 import 'package:yafintech/services/secure_storage.dart';
 import 'package:yafintech/services/reload_service.dart';
@@ -40,15 +40,14 @@ class _AcceuilState extends State<Acceuil> with SingleTickerProviderStateMixin {
 
       setState(() {
         _live = live;
-        print('💿💿💿💿💿💿💿💿💿  $_live');
+        print('💿💿💿💿💿💿💿💿💿  live');
       });
 
-      // ✅ 3. CRUCIAL : démarrer/arrêter l'animation selon le statut
       _updateAnimation();
     });
 
     // ✅ 4. Démarrer le polling
-    _liveService.demarrer(interval: const Duration(seconds: 20));
+    _liveService.demarrer(interval: const Duration(seconds: 30));
   }
 
   void userGet() async {
@@ -124,14 +123,21 @@ class _AcceuilState extends State<Acceuil> with SingleTickerProviderStateMixin {
             icon: const Icon(Icons.qr_code_scanner),
           ),
           IconButton(
-            onPressed: () async {},
+            onPressed: () async {
+              // context.push('/audio');
+            },
             icon: const Icon(Icons.gps_not_fixed),
           ),
-          IconButton(onPressed: () {}, icon: const Icon(Icons.more_vert)),
+          IconButton(
+            onPressed: () {
+              //context.push('/event');
+            },
+            icon: const Icon(Icons.more_vert),
+          ),
         ],
       ),
       body: Container(
-        color: const Color.fromARGB(255, 205, 200, 216),
+        //color: const Color.fromARGB(255, 205, 200, 216),
         child: Column(
           children: [
             Container(

@@ -17,41 +17,46 @@ class _MonCarrouselState extends State<MonCarrousel> {
   int _pageActuelle = 0;
 
   final List<Widget> containers = [
-    Container(
-      decoration: BoxDecoration(
-        color: Colors.blue,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: const Center(
-        child: Text(
-          'Container 1',
-          style: TextStyle(color: Colors.white, fontSize: 25),
+    InkWell(
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.blue,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Center(
+          child: Text(
+            'Container 1',
+            style: TextStyle(color: Colors.white, fontSize: 25),
+          ),
         ),
       ),
     ),
 
-    Container(
-      decoration: BoxDecoration(
-        color: Colors.green,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: const Center(
-        child: Text(
-          'Container 2',
-          style: TextStyle(color: Colors.white, fontSize: 25),
+    InkWell(
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.green,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Center(
+          child: Text(
+            'Container 2',
+            style: TextStyle(color: Colors.white, fontSize: 25),
+          ),
         ),
       ),
     ),
-
-    Container(
-      decoration: BoxDecoration(
-        color: Colors.orange,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: const Center(
-        child: Text(
-          'Container 3',
-          style: TextStyle(color: Colors.white, fontSize: 25),
+    InkWell(
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.orange,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Center(
+          child: Text(
+            'Container 3',
+            style: TextStyle(color: Colors.white, fontSize: 25),
+          ),
         ),
       ),
     ),

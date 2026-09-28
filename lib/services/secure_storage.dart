@@ -20,7 +20,12 @@ class SecureStorageService {
   }
 
   static Future<String?> getAccessToken() async {
-    return await _storage.read(key: accessTokenKey);
+    try {
+      return await _storage.read(key: accessTokenKey);
+    } catch (e) {
+      print('Erreur : $e');
+      return null;
+    }
   }
 
   static Future<String?> getRefreshToken() async {

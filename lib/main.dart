@@ -1,6 +1,11 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:yafintech/screen/fenetre/audio.dart';
+import 'package:yafintech/screen/fenetre/chat.dart';
+import 'package:yafintech/screen/fenetre/chatIA.dart';
+import 'package:yafintech/screen/fenetre/chatlist.dart';
+import 'package:yafintech/screen/home_screen/evenement.dart';
 import 'package:yafintech/screen/fenetre/pdf_page.dart';
 import 'package:yafintech/screen/fenetre/pdf_widget.dart';
 import 'package:yafintech/screen/home_screen/ongle.dart';
@@ -96,6 +101,26 @@ void main() async {
           );
         },
       ),
+
+      GoRoute(path: '/chartlist', builder: (context, state) => ChatListPage()),
+      GoRoute(
+        path: '/chart',
+        builder: (context, state) {
+          final extra = state.extra as int;
+          return ChatPage(id: extra);
+        },
+      ),
+      GoRoute(
+        path: '/chartia',
+        builder: (context, state) {
+          return ChatIAPage();
+        },
+      ),
+      GoRoute(
+        path: '/audio',
+        builder: (context, state) => AudioRecorderWidget(),
+      ),
+      GoRoute(path: '/event', builder: (context, state) => EventPage()),
     ],
   );
 

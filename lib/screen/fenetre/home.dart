@@ -1,10 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:yafintech/core/theme/app_color.dart';
+import 'package:yafintech/screen/fenetre/chatIA.dart';
+import 'package:yafintech/screen/fenetre/chatlist.dart';
+import 'package:yafintech/screen/fenetre/chatlistIA.dart';
+import 'package:yafintech/screen/fenetre/profile.dart';
+import 'package:yafintech/screen/home_screen/evenement.dart';
 import 'package:yafintech/screen/home_screen/acceuil.dart';
 import 'package:yafintech/screen/home_screen/discussion.dart';
 import 'package:yafintech/screen/home_screen/moi.dart';
 import 'package:yafintech/screen/home_screen/ongle.dart';
 import 'package:yafintech/screen/home_screen/ressource.dart';
+import 'package:yafintech/services/reload_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -18,15 +26,16 @@ class _HomePageState extends State<HomePage> {
 
   final List<Widget> _fenetres = <Widget>[
     Acceuil(),
-    Discussion(),
-    Onglets(),
-    Ressource(),
-    Moi(),
+    ChatListPage(),
+    ChatIAPage(),
+    EventPage(),
+    //Onglets(),
+    ProfilePage(),
   ];
-  /*  late WebSocketService _ws;
-  final List<Map<String, dynamic>> _live = [];
-  int _viewersCount = 0;
-  bool _isConnected = false; */
+
+  int unRead = 0;
+  final unreadMsg _unReadservice = unreadMsg();
+  StreamSubscription? _streamSubscription;
 
   void changePage(int index) {
     setState(() {
@@ -34,47 +43,26 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  /*   @override
-  void initState() async {
-    final token = await SecureStorageService.getAccessToken();
-    if (token == null) {
-      context.go('/connexion');
-    }
+  @override
+  void initState() {
+    super.initState();
 
-    // ✅ Créer le service WebSocket
-    _ws = WebSocketService(url: '$baseurl', token: token!);
-
-    // ✅ Écouter les messages reçus
-    _ws.messages.listen((data) {
-      if (!mounted) return;
-
-      final type = data['type'];
-
-      if (type == 'chat') {
+    _streamSubscription = _unReadservice.unreadMsgStream.listen((data) {
+      if (data != null) {
         setState(() {
-          _live.add(data);
+          unRead = data['unread_count'];
+
+          print('🚠🚠🚠🚠🚠🚠🚠🚠🚠🚠 :$unRead');
         });
-        //_scrollToBottom();
-      } else if (type == 'viewers') {
+      } else {
         setState(() {
-          _viewersCount = data['count'] ?? 0;
+          unRead = 0;
         });
-      } else if (type == 'pong') {
-        // Réponse au ping, on ignore
       }
     });
 
-    // ✅ Écouter l'état de connexion
-    _ws.connectionStatus.listen((connected) {
-      if (!mounted) return;
-      setState(() {
-        _isConnected = connected;
-      });
-    });
-
-    // ✅ Se connecter
-    _ws.connect();
-  } */
+    _unReadservice.demarrer(interval: const Duration(seconds: 20));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -103,14 +91,47 @@ class _HomePageState extends State<HomePage> {
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Container(
-              margin: EdgeInsets.all(5),
-              padding: EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(.2),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(Icons.message),
+            icon: Stack(
+              children: [
+                Container(
+                  margin: EdgeInsets.all(5),
+                  padding: EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.message),
+                ),
+                if (unRead >= 1)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(
+                        minWidth: 20,
+                        minHeight: 20,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.red, //
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: Center(
+                        child: Text(
+                          unRead.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            height: 1,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             label: 'discussion',
           ),
@@ -122,9 +143,9 @@ class _HomePageState extends State<HomePage> {
                 color: Colors.grey.withOpacity(.2),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(Icons.access_alarms),
+              child: Icon(Icons.support_agent),
             ),
-            label: 'onglet',
+            label: 'assistance',
           ),
           BottomNavigationBarItem(
             icon: Container(
@@ -134,10 +155,11 @@ class _HomePageState extends State<HomePage> {
                 color: Colors.grey.withOpacity(.2),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(Icons.library_books),
+              child: Icon(Icons.event),
             ),
-            label: 'ressources',
+            label: 'evenement',
           ),
+
           BottomNavigationBarItem(
             icon: Container(
               margin: EdgeInsets.all(5),
@@ -155,7 +177,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget NavigationBar() {
+  /*   Widget NavigationBar() {
     return Container(
       //color: Colors.black,
       padding: EdgeInsets.symmetric(vertical: 10),
@@ -231,5 +253,12 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
     );
+  } */
+
+  @override
+  void dispose() {
+    _streamSubscription?.cancel();
+    _unReadservice.arreter();
+    super.dispose();
   }
 }

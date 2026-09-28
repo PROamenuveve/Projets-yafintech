@@ -76,6 +76,8 @@
 <dict>
     <key>NSAllowsArbitraryLoadsInMedia</key>
 	<key>NSAllowsArbitraryLoads</key>
+	<key>NSMicrophoneUsageDescription</key>
+<string>Cette application a besoin d'accéder à votre microphone pour enregistrer des messages vocaux.</string>
     <true/>
 </dict>
 </dict>

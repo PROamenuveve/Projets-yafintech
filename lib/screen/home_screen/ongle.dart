@@ -27,12 +27,23 @@ class _OngletsState extends State<Onglets> {
       initialIndex: 0,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Mes Ressources'),
+          title: const Text(
+            'Etudes',
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          ),
+          actions: [
+            IconButton(
+              onPressed: () {
+                debugPrint('🔍 Recherche');
+              },
+              icon: const Icon(Icons.search, color: Colors.black),
+            ),
+          ],
           bottom: const TabBar(
             tabs: [
-              Tab(text: 'Formations', icon: Icon(Icons.school)),
-              Tab(text: 'Ressources', icon: Icon(Icons.folder_open)),
-              Tab(text: 'Mes Ressources', icon: Icon(Icons.save_alt)),
+              Tab(text: 'Formations'),
+              Tab(text: 'Ressources'),
+              Tab(text: 'Mes Ressources'),
             ],
             // Optionnel : rendre les onglets défilables horizontalement
             isScrollable: true,

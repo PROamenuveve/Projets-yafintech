@@ -53,11 +53,13 @@ class LiveServiceActive {
 
   Future<void> _fetchActiveLive() async {
     try {
+      print('$baseurl/api/live-streams/active');
+      final tkn = await geToken();
       final response = await http
           .get(
-            Uri.parse('$baseurl/live-streams/active'),
+            Uri.parse('$baseurl/api/live-streams/active'),
             headers: {
-              'Authorization': 'Bearer $geToken',
+              'Authorization': 'Bearer $tkn',
               'Accept': 'application/json',
               'ngrok-skip-browser-warning': 'true',
             },
@@ -167,11 +169,12 @@ class LiveService {
 
   Future<void> _fetchActiveLive() async {
     try {
+      final tkn = await geToken();
       final response = await http
           .get(
-            Uri.parse('$baseurl/live-streams'),
+            Uri.parse('$baseurl/api/live-streams'),
             headers: {
-              'Authorization': 'Bearer $geToken',
+              'Authorization': 'Bearer $tkn',
               'Accept': 'application/json',
               'ngrok-skip-browser-warning': 'true',
             },
@@ -243,7 +246,7 @@ class getFormationService {
       _formationController.stream;
 
   Map<String, dynamic>? _currentFormation;
-  Map<String, dynamic>? get currentLive => _currentFormation;
+  Map<String, dynamic>? get currentFormation => _currentFormation;
 
   bool _isPolling = false;
 
@@ -260,10 +263,10 @@ class getFormationService {
     );
 
     // Premier appel immédiat
-    _fetchActiveLive();
+    _fetchActiveFormation();
 
     // Puis appels réguliers
-    _pollingTimer = Timer.periodic(interval, (_) => _fetchActiveLive());
+    _pollingTimer = Timer.periodic(interval, (_) => _fetchActiveFormation());
   }
 
   // ------------------------------------------------------------
@@ -281,15 +284,16 @@ class getFormationService {
   // APPEL API
   // ------------------------------------------------------------
 
-  Future<void> _fetchActiveLive() async {
+  Future<void> _fetchActiveFormation() async {
     try {
+      final tkn = await geToken();
       final response = await http
           .get(
-            Uri.parse('$baseurl/formations'),
+            Uri.parse('$baseurl/api/formations'),
             headers: {
               'Accept': 'application/json',
               'Content-Type': 'application/json',
-              'Authorization': 'Bearer $geToken',
+              'Authorization': 'Bearer $tkn',
             },
           )
           .timeout(const Duration(seconds: 10));
@@ -297,12 +301,12 @@ class getFormationService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
 
-        final newLiveId = data['id'];
-        final oldLiveId = _currentFormation?['id'];
+        final newFormationId = data['id'];
+        final oldFormationId = _currentFormation?['id'];
 
         _currentFormation = data;
 
-        if (newLiveId != oldLiveId) {
+        if (newFormationId != oldFormationId) {
           debugPrint('🔴 nouveau formation : ${data['title']}');
         }
 
@@ -332,7 +336,7 @@ class getFormationService {
   // ------------------------------------------------------------
 
   Future<void> refresh() async {
-    await _fetchActiveLive();
+    await _fetchActiveFormation();
   }
 
   // ------------------------------------------------------------
@@ -354,7 +358,7 @@ class getRessourceService {
   Stream<dynamic> get ressourceStream => _ressourceController.stream;
 
   dynamic _currentRessource;
-  dynamic get currentLive => _currentRessource;
+  dynamic get currentRessource => _currentRessource;
 
   bool _isPolling = false;
 
@@ -363,8 +367,8 @@ class getRessourceService {
     _isPolling = true;
 
     debugPrint('▶️ Démarrage du polling (toutes les ${interval.inSeconds}s)');
-    _fetchActiveLive();
-    _pollingTimer = Timer.periodic(interval, (_) => _fetchActiveLive());
+    _fetchActiveRessource();
+    _pollingTimer = Timer.periodic(interval, (_) => _fetchActiveRessource());
   }
 
   void arreter() {
@@ -374,17 +378,16 @@ class getRessourceService {
     debugPrint('⏹️ Arrêt du polling');
   }
 
-  Future<void> _fetchActiveLive() async {
+  Future<void> _fetchActiveRessource() async {
     try {
+      final tkn = await geToken();
       final response = await http
           .get(
-            Uri.parse(
-              '$baseurl/resources',
-            ), // Assurez-vous que baseurl est défini
+            Uri.parse('$baseurl/api/resources'),
             headers: {
               'Accept': 'application/json',
               'Content-Type': 'application/json',
-              'Authorization': 'Bearer $geToken',
+              'Authorization': 'Bearer $tkn',
             },
           )
           .timeout(const Duration(seconds: 10));
@@ -415,7 +418,7 @@ class getRessourceService {
     }
   }
 
-  Future<void> refresh() async => await _fetchActiveLive();
+  Future<void> refresh() async => await _fetchActiveRessource();
 
   void dispose() {
     arreter();
@@ -432,7 +435,7 @@ class getMyRessourceService {
   Stream<dynamic> get ressourceStream => _myressourceController.stream;
 
   dynamic _currentMycessource;
-  dynamic get currentLive => _currentMycessource;
+  dynamic get currentmyressource => _currentMycessource;
 
   bool _isPolling = false;
 
@@ -441,8 +444,8 @@ class getMyRessourceService {
     _isPolling = true;
 
     debugPrint('▶️ Démarrage du polling (toutes les ${interval.inSeconds}s)');
-    _fetchActiveLive();
-    _pollingTimer = Timer.periodic(interval, (_) => _fetchActiveLive());
+    _fetchActiveRessource();
+    _pollingTimer = Timer.periodic(interval, (_) => _fetchActiveRessource());
   }
 
   void arreter() {
@@ -452,17 +455,18 @@ class getMyRessourceService {
     debugPrint('⏹️ Arrêt du polling');
   }
 
-  Future<void> _fetchActiveLive() async {
+  Future<void> _fetchActiveRessource() async {
     try {
+      final tkn = await geToken();
       final response = await http
           .get(
             Uri.parse(
-              '$baseurl/resources',
+              '$baseurl/api/my-formations',
             ), // Assurez-vous que baseurl est défini
             headers: {
               'Accept': 'application/json',
               'Content-Type': 'application/json',
-              'Authorization': 'Bearer $geToken',
+              'Authorization': 'Bearer $tkn',
             },
           )
           .timeout(const Duration(seconds: 10));
@@ -493,10 +497,466 @@ class getMyRessourceService {
     }
   }
 
-  Future<void> refresh() async => await _fetchActiveLive();
+  Future<void> refresh() async => await _fetchActiveRessource();
 
   void dispose() {
     arreter();
     _myressourceController.close();
+  }
+}
+
+class iaConversation {
+  Timer? _pollingTimer;
+
+  final _iaConversationController = StreamController<dynamic>.broadcast();
+
+  Stream<dynamic> get iaConversationStream => _iaConversationController.stream;
+
+  dynamic _currentIaConversation;
+  dynamic get currentiaConversation => _currentIaConversation;
+
+  bool _isPolling = false;
+
+  void demarrer({Duration interval = const Duration(seconds: 2)}) {
+    if (_isPolling) return;
+    _isPolling = true;
+
+    debugPrint('▶️ Démarrage du polling (toutes les ${interval.inSeconds}s)');
+    _fetchIachate();
+    _pollingTimer = Timer.periodic(interval, (_) => _fetchIachate());
+  }
+
+  void arreter() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+    _isPolling = false;
+    debugPrint('⏹️ Arrêt du polling');
+  }
+
+  Future<void> _fetchIachate() async {
+    try {
+      final tkn = await geToken();
+      final response = await http
+          .get(
+            Uri.parse('$baseurl/api/my-formations'),
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $tkn',
+            },
+          )
+          .timeout(const Duration(seconds: 10));
+      if (_iaConversationController.isClosed) return;
+
+      if (response.statusCode == 200) {
+        // ✅ Ne pas forcer le typage en Map, accepter le dynamic
+        final dynamic data = jsonDecode(response.body);
+        _currentIaConversation = data;
+
+        if (!_iaConversationController.isClosed) {
+          _iaConversationController.add(data);
+        }
+      } else if (response.statusCode == 204 || response.statusCode == 404) {
+        _currentIaConversation = null;
+        if (!_iaConversationController.isClosed) {
+          _iaConversationController.add(null);
+        }
+      } else {
+        debugPrint('❌ Erreur API : ${response.statusCode}');
+      }
+    } on TimeoutException {
+      debugPrint('⏱️ Timeout lors du fetch');
+    } catch (e) {
+      debugPrint('❌ Exception : $e');
+    }
+  }
+
+  Future<void> refresh() async => await _fetchIachate();
+
+  void dispose() {
+    arreter();
+    _iaConversationController.close();
+  }
+}
+
+class ctConversation {
+  Timer? _pollingTimer;
+
+  final _ctConversationController = StreamController<dynamic>.broadcast();
+
+  Stream<dynamic> get ctConversationStream => _ctConversationController.stream;
+
+  dynamic _currentCtConversation;
+  dynamic get currentctConversation => _currentCtConversation;
+
+  bool _isPolling = false;
+
+  void demarrer({Duration interval = const Duration(seconds: 2)}) {
+    if (_isPolling) return;
+    _isPolling = true;
+
+    debugPrint('▶️ Démarrage du polling (toutes les ${interval.inSeconds}s)');
+    _fetchCtchate();
+    _pollingTimer = Timer.periodic(interval, (_) => _fetchCtchate());
+  }
+
+  void arreter() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+    _isPolling = false;
+    debugPrint('⏹️ Arrêt du polling');
+  }
+
+  Future<void> _fetchCtchate() async {
+    try {
+      final tkn = await geToken();
+      final response = await http
+          .get(
+            Uri.parse('$baseurl/api/chat/contacts'),
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $tkn',
+            },
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (_ctConversationController.isClosed) return;
+
+      if (response.statusCode == 200) {
+        // ✅ Ne pas forcer le typage en Map, accepter le dynamic
+        final dynamic data = jsonDecode(response.body);
+        _currentCtConversation = data;
+
+        if (!_ctConversationController.isClosed) {
+          _ctConversationController.add(data);
+        }
+      } else if (response.statusCode == 204 || response.statusCode == 404) {
+        _currentCtConversation = null;
+        if (!_ctConversationController.isClosed) {
+          _ctConversationController.add(null);
+        }
+      } else {
+        debugPrint('❌ Erreur API : ${response.statusCode}');
+      }
+    } on TimeoutException {
+      debugPrint('⏱️ Timeout lors du fetch');
+    } catch (e) {
+      debugPrint('❌ Exception : $e');
+    }
+  }
+
+  Future<void> refresh() async => await _fetchCtchate();
+
+  void dispose() {
+    arreter();
+    _ctConversationController.close();
+  }
+}
+
+class unreadMsg {
+  Timer? _pollingTimer;
+
+  final _unreadMsgController = StreamController<dynamic>.broadcast();
+
+  Stream<dynamic> get unreadMsgStream => _unreadMsgController.stream;
+
+  dynamic _currentUnreadMsg;
+  dynamic get currentLive => _currentUnreadMsg;
+
+  bool _isPolling = false;
+
+  void demarrer({Duration interval = const Duration(seconds: 2)}) {
+    if (_isPolling) return;
+    _isPolling = true;
+
+    debugPrint('▶️ Démarrage du polling (toutes les ${interval.inSeconds}s)');
+    _fetchUnreadMsg();
+    _pollingTimer = Timer.periodic(interval, (_) => _fetchUnreadMsg());
+  }
+
+  void arreter() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+    _isPolling = false;
+    debugPrint('⏹️ Arrêt du polling');
+  }
+
+  Future<void> _fetchUnreadMsg() async {
+    try {
+      final tkn = await geToken();
+      final response = await http
+          .get(
+            Uri.parse('$baseurl/api/chat/unread-count'),
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $tkn',
+            },
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (_unreadMsgController.isClosed) return;
+
+      if (response.statusCode == 200) {
+        // ✅ Ne pas forcer le typage en Map, accepter le dynamic
+        final dynamic data = jsonDecode(response.body);
+        _currentUnreadMsg = data;
+
+        if (!_unreadMsgController.isClosed) {
+          _unreadMsgController.add(data);
+        }
+      } else if (response.statusCode == 204 || response.statusCode == 404) {
+        _currentUnreadMsg = null;
+        if (!_unreadMsgController.isClosed) {
+          _unreadMsgController.add(null);
+        }
+      } else {
+        debugPrint('❌ Erreur API : ${response.statusCode}');
+      }
+    } on TimeoutException {
+      debugPrint('⏱️ Timeout lors du fetch');
+    } catch (e) {
+      debugPrint('❌ Exception : $e');
+    }
+  }
+
+  Future<void> refresh() async => await _fetchUnreadMsg();
+
+  void dispose() {
+    arreter();
+    _unreadMsgController.close();
+  }
+}
+
+class msgId(int id) {
+  final ids = id;
+  Timer? _pollingTimer;
+
+  final _msidController = StreamController<dynamic>.broadcast();
+
+  Stream<dynamic> get msidStream => _msidController.stream;
+
+  dynamic _currentMsid;
+  dynamic get currentLive => _currentMsid;
+
+  bool _isPolling = false;
+
+  void demarrer({Duration interval = const Duration(seconds: 2)}) {
+    if (_isPolling) return;
+    _isPolling = true;
+
+    debugPrint('▶️ Démarrage du polling (toutes les ${interval.inSeconds}s)');
+    _fetchmsid();
+    _pollingTimer = Timer.periodic(interval, (_) => _fetchmsid());
+  }
+
+  void arreter() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+    _isPolling = false;
+    debugPrint('⏹️ Arrêt du polling');
+  }
+
+  Future<void> _fetchmsid() async {
+    try {
+      final tkn = await geToken();
+      final response = await http
+          .get(
+            Uri.parse('$baseurl/api/chat/conversations/$ids'),
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $tkn',
+            },
+          )
+          .timeout(const Duration(seconds: 4));
+
+      //if (_msidController.isClosed) return;
+
+      if (response.statusCode == 200) {
+        // ✅ Ne pas forcer le typage en Map, accepter le dynamic
+        //print(response.body);
+        final dynamic data = jsonDecode(response.body);
+        _currentMsid = data;
+
+        if (!_msidController.isClosed) {
+          _msidController.add(data);
+          //print(_currentMsid);
+        }
+      } else if (response.statusCode == 204 || response.statusCode == 404) {
+        _currentMsid = null;
+        if (!_msidController.isClosed) {
+          _msidController.add(null);
+        }
+      } else {
+        debugPrint('❌ Erreur API : ${response.statusCode}');
+      }
+    } on TimeoutException {
+      debugPrint('⏱️ Timeout lors du fetch');
+    } catch (e) {
+      debugPrint('❌ Exception : $e');
+    }
+  }
+
+  Future<void> refresh() async => await _fetchmsid();
+
+  void dispose() {
+    arreter();
+    _msidController.close();
+  }
+}
+
+class msgIAId() {
+  Timer? _pollingTimer;
+
+  final _msiaidController = StreamController<dynamic>.broadcast();
+
+  Stream<dynamic> get msiaidStream => _msiaidController.stream;
+
+  dynamic _currentMsiaid;
+  dynamic get currentMsgiaid => _currentMsiaid;
+
+  bool _isPolling = false;
+
+  void demarrer({Duration interval = const Duration(seconds: 2)}) {
+    if (_isPolling) return;
+    _isPolling = true;
+
+    debugPrint('▶️ Démarrage du polling (toutes les ${interval.inSeconds}s)');
+    _fetchmsiaid();
+    _pollingTimer = Timer.periodic(interval, (_) => _fetchmsiaid());
+  }
+
+  void arreter() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+    _isPolling = false;
+    debugPrint('⏹️ Arrêt du polling');
+  }
+
+  Future<void> _fetchmsiaid() async {
+    try {
+      final tkn = await geToken();
+      final response = await http
+          .get(
+            Uri.parse('$baseurl/api/assistant/conversations'),
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $tkn',
+            },
+          )
+          .timeout(const Duration(seconds: 4));
+
+      //if (_msidController.isClosed) return;
+
+      if (response.statusCode == 200) {
+        // ✅ Ne pas forcer le typage en Map, accepter le dynamic
+        //print(response.body);
+        final dynamic data = jsonDecode(response.body);
+        _currentMsiaid = data;
+
+        if (!_msiaidController.isClosed) {
+          _msiaidController.add(data);
+          //print(_currentMsid);
+        }
+      } else if (response.statusCode == 204 || response.statusCode == 404) {
+        _currentMsiaid = null;
+        if (!_msiaidController.isClosed) {
+          _msiaidController.add(null);
+        }
+      } else {
+        debugPrint('❌ Erreur API : ${response.statusCode}');
+      }
+    } on TimeoutException {
+      debugPrint('⏱️ Timeout lors du fetch');
+    } catch (e) {
+      debugPrint('❌ Exception : $e');
+    }
+  }
+
+  Future<void> refresh() async => await _fetchmsiaid();
+
+  void dispose() {
+    arreter();
+    _msiaidController.close();
+  }
+}
+
+class events(int id) {
+  Timer? _pollingTimer;
+
+  final _eventsController = StreamController<dynamic>.broadcast();
+
+  Stream<dynamic> get eventsStream => _eventsController.stream;
+
+  dynamic _currentEvents;
+  dynamic get currentMsgiaid => _currentEvents;
+
+  bool _isPolling = false;
+
+  void demarrer({Duration interval = const Duration(seconds: 2)}) {
+    if (_isPolling) return;
+    _isPolling = true;
+
+    debugPrint('▶️ Démarrage du polling (toutes les ${interval.inSeconds}s)');
+    _fetcheventsid();
+    _pollingTimer = Timer.periodic(interval, (_) => _fetcheventsid());
+  }
+
+  void arreter() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+    _isPolling = false;
+    debugPrint('⏹️ Arrêt du polling');
+  }
+
+  Future<void> _fetcheventsid() async {
+    try {
+      final tkn = await geToken();
+      final response = await http
+          .get(
+            Uri.parse('$baseurl/api/events'),
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $tkn',
+            },
+          )
+          .timeout(const Duration(seconds: 4));
+
+      //if (_msidController.isClosed) return;
+
+      if (response.statusCode == 200) {
+        // ✅ Ne pas forcer le typage en Map, accepter le dynamic
+        //print(response.body);
+        final dynamic data = jsonDecode(response.body);
+        _currentEvents = data;
+
+        if (!_eventsController.isClosed) {
+          _eventsController.add(data);
+          //print(_currentMsid);
+        }
+      } else if (response.statusCode == 204 || response.statusCode == 404) {
+        _currentEvents = null;
+        if (!_eventsController.isClosed) {
+          _eventsController.add(null);
+        }
+      } else {
+        debugPrint('❌ Erreur API : ${response.statusCode}');
+      }
+    } on TimeoutException {
+      debugPrint('⏱️ Timeout lors du fetch');
+    } catch (e) {
+      debugPrint('❌ Exception : $e');
+    }
+  }
+
+  Future<void> refresh() async => await _fetcheventsid();
+
+  void dispose() {
+    arreter();
+    _eventsController.close();
   }
 }

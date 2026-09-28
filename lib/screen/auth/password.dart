@@ -152,7 +152,7 @@ class _PasswordState extends State<Password> {
                                   if (reponse == "Compte créé avec succès") {
                                     print('🏐🏐🏐🏐🏐🏐🏐🏐🏐🏐🏐🏐🏐🏐');
                                     setState(() {
-                                      context.push('/');
+                                      context.go('/');
                                     });
                                   } else if (reponse ==
                                       'The email has already been taken.') {

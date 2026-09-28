@@ -7,10 +7,8 @@ import 'package:http/http.dart' as http;
 import 'package:yafintech/screen/fenetre/home.dart';
 import 'package:yafintech/services/secure_storage.dart';
 
-String baseurl =
-    "https://95d0-2c0f-f0f8-855-4f00-901f-a468-f47c-d798.ngrok-free.app/api";
-String storageUrl =
-    'http://95d0-2c0f-f0f8-855-4f00-901f-a468-f47c-d798.ngrok-free.app/storage';
+String baseurl = "http://192.168.1.73:8000";
+String storageUrl = '$baseurl/storage';
 
 Future<Map<String, dynamic>> getUser() async {
   final data = await SecureStorageService.getAccessUser();
@@ -42,7 +40,7 @@ Future<bool> login(String email, String password) async {
   print("$email,  🧶🧶🧶🧶🧶🧶🧶  $password ");
   try {
     final response = await http.post(
-      Uri.parse("$baseurl/login"),
+      Uri.parse("$baseurl/api/login"),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -74,7 +72,7 @@ Future<bool> login(String email, String password) async {
 Future<String> register(Map<String, dynamic> donnes) async {
   try {
     final response = await http.post(
-      Uri.parse('${baseurl}/register'),
+      Uri.parse('$baseurl/api/register'),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -111,7 +109,7 @@ Future<void> register_Menber(Map<String, dynamic> donnes) async {
   print('$nn 🧶🧶🧶🧶🧶');
   try {
     final response = await http.post(
-      Uri.parse('${baseurl}/members'),
+      Uri.parse('$baseurl/api/members'),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -139,7 +137,7 @@ Future<void> register_Menber(Map<String, dynamic> donnes) async {
 Future<void> role_fonction() async {
   try {
     final response = await http.get(
-      Uri.parse('$baseurl/super-admin/roles-and-fonctions'),
+      Uri.parse('$baseurl/api/super-admin/roles-and-fonctions'),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -172,7 +170,7 @@ Future<int> Qr_presence(String qr, double latitude, double longitude) async {
   );
   try {
     final response = await http.post(
-      Uri.parse('$baseurl/attendance/scan-public'),
+      Uri.parse('$baseurl/api/attendance/scan-public'),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -213,7 +211,7 @@ Future<void> updateProfile(Map<String, dynamic> updatedData) async {
 
   try {
     final response = await http.put(
-      Uri.parse('$baseurl/members/$userId'),
+      Uri.parse('$baseurl/api/members/$userId'),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -239,11 +237,11 @@ Future<void> updateProfile(Map<String, dynamic> updatedData) async {
 Future<Map<String, dynamic>> getFormation() async {
   try {
     final response = await http.get(
-      Uri.parse('$baseurl/formations'),
+      Uri.parse('$baseurl/api/formations'),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer $geToken',
+        'Authorization': 'Bearer  ${await geToken()}',
       },
     );
 
@@ -268,11 +266,11 @@ Future<Map<String, dynamic>> getFormation() async {
 Future<Map<String, dynamic>> getRessources() async {
   try {
     final response = await http.get(
-      Uri.parse('$baseurl/resources'),
+      Uri.parse('$baseurl/api/resources'),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer $geToken',
+        'Authorization': 'Bearer  ${await geToken()}',
       },
     );
 
@@ -297,11 +295,11 @@ Future<Map<String, dynamic>> getRessources() async {
 Future<void> resourceCategorie() async {
   try {
     final response = await http.get(
-      Uri.parse('$baseurl/resource-categories'),
+      Uri.parse('$baseurl/api/resource-categories'),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer $geToken',
+        'Authorization': 'Bearer  ${await geToken()}',
       },
 
       //body: jsonEncode({}),
@@ -317,6 +315,64 @@ Future<void> resourceCategorie() async {
       print(response.body);
     }
   } catch (e) {
+    print('Erreur réseau : $e');
+  }
+}
+
+Future<void> sendMsg(int id, String msg) async {
+  try {
+    final response = await http.post(
+      Uri.parse('$baseurl/api/chat/messages'),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${await geToken()}',
+      },
+
+      body: jsonEncode({"recipient_id": id, "contenu": msg}),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = jsonDecode(response.body);
+
+      print('🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️');
+      print(data);
+    } else {
+      print('🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️');
+      print('Erreur : ${response.statusCode}');
+      print(response.body);
+    }
+  } catch (e) {
+    print('🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️');
+    print('Erreur réseau : $e');
+  }
+}
+
+Future<void> sendIaMsg(int id, String msg) async {
+  try {
+    final response = await http.post(
+      Uri.parse('$baseurl/api/chat/messages'),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${await geToken()}',
+      },
+
+      body: jsonEncode({"recipient_id": id, "contenu": msg}),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = jsonDecode(response.body);
+
+      print('🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️');
+      print(data);
+    } else {
+      print('🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️');
+      print('Erreur : ${response.statusCode}');
+      print(response.body);
+    }
+  } catch (e) {
+    print('🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️');
     print('Erreur réseau : $e');
   }
 }

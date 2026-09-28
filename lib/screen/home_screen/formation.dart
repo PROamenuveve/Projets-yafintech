@@ -39,7 +39,6 @@ class _FormationState extends State<Formation> {
           print('📚📚📚📚📚📚📚📚📚  : formationData');
         });
       } else {
-        // Si data est null (204/404), on vide les données
         setState(() {
           formationData = null;
         });
