@@ -139,6 +139,7 @@ void main() async {
       androidStopForegroundOnPause: true,
     ),
   ); */
+  //démarrer l'application Flutter
   runApp(const MyApp());
 }
 
