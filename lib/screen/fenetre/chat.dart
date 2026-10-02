@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+import 'package:yafintech/core/theme/app_color.dart';
 import 'package:yafintech/services/auth_service.dart';
 import 'package:yafintech/services/reload_service.dart';
+import 'package:yafintech/services/secure_storage.dart';
 
 // ============================================================
 // PAGE DE CHAT COMPLÈTE
@@ -29,9 +33,8 @@ class _ChatPageState extends State<ChatPage> {
   StreamSubscription? _streamSubscription;
 
   // ✅ Données hardcodées
-  final String contactName = 'Jean Dupont';
-  final String? contactAvatar = '';
-  final bool isOnline = true;
+
+  final bool isOnline = false; // Remplacez par la logique réelle pour vérifier si le contact est en ligne
 
   bool _hasText = false;
   final AudioRecorder _recorder = AudioRecorder();
@@ -43,68 +46,127 @@ class _ChatPageState extends State<ChatPage> {
 
   List<dynamic> _messages = [];
 
+  bool _isDisposed = false;
+
+  // ============================================================
+  // INIT
+  // ============================================================
+
   @override
   void initState() {
     super.initState();
+
     _controller.addListener(() {
       final hasText = _controller.text.trim().isNotEmpty;
       if (hasText != _hasText) {
         setState(() => _hasText = hasText);
       }
     });
-    _scrollToBottom();
-    _recordSub = _recorder.onStateChanged().listen((state) {
-      if (mounted) {
-        setState(() => _recordState = state);
-      }
-    });
 
-    _streamSubscription = _msgidservice.msidStream.listen((data) {
-      if (!mounted) return;
+    _recordSub = _recorder.onStateChanged().listen(
+      (state) {
+        if (mounted && !_isDisposed) {
+          setState(() => _recordState = state);
+        }
+      },
+      onError: (error) {
+        debugPrint('❌ Erreur recorder state : $error');
+      },
+    );
 
-      setState(() {
+    _streamSubscription = _msgidservice.msidStream.listen(
+      (data) {
+        if (!mounted || _isDisposed) return;
+
+        //  Extraire les nouvelles données
+        Map<String, dynamic>? newMsgData;
+        List<dynamic> newMessages;
+
         if (data == null) {
-          msgData = null;
-          _messages = [];
-          return;
-        }
-
-        // Normalise TOUJOURS en Map
-        if (data is List) {
-          msgData = {'messages': data};
-        } else if (data is Map<String, dynamic>) {
-          msgData = data;
+          newMsgData = null;
+          newMessages = [];
         } else {
-          msgData = {'messages': []};
+          if (data is List) {
+            newMsgData = {'messages': data};
+          } else if (data is Map<String, dynamic>) {
+            newMsgData = data;
+          } else {
+            newMsgData = {'messages': []};
+          }
+          final raw = newMsgData['messages'];
+          newMessages = (raw is List) ? List<dynamic>.from(raw) : <dynamic>[];
         }
 
-        // Remplit _messages depuis msgData quelle que soit la source
-        final raw = msgData?['messages'];
-        _messages = (raw is List) ? List<dynamic>.from(raw) : <dynamic>[];
+        // Vérifier si les données ont réellement changé
+        if (_hasMessagesChanged(newMessages)) {
+          setState(() {
+            msgData = newMsgData;
+            _messages = newMessages;
+            print('🏈 _messages.length = ${_messages.length}');
+          });
 
-        print('🥛 msgData = msgData');
-        print('🏈 _messages.length = _messages');
-      });
-    });
+          if (_messages.isNotEmpty) {
+            _scrollToBottom();
+          }
+        } else {
+          print('✅ Aucun changement, pas de rebuild');
+        }
+      },
+      onError: (error) {
+        debugPrint('❌ Erreur messages : $error');
+      },
+      cancelOnError: false,
+    );
 
-    _msgidservice.demarrer(interval: const Duration(seconds: 20));
+    _msgidservice.demarrer(interval: const Duration(seconds: 5));
   }
 
-  // ------------------------------------------------------------
-  // ENVOYER UN MESSAGE
-  // ------------------------------------------------------------
+  // ============================================================
+  // VÉRIFIER SI LES MESSAGES ONT CHANGÉ (anti-flicker)
+  // ============================================================
+
+  bool _hasMessagesChanged(List<dynamic> newMessages) {
+    if (newMessages.length != _messages.length) {
+      return true;
+    }
+
+    // ✅ Comparer les ID (ou contenu + date + lu)
+    for (int i = 0; i < newMessages.length; i++) {
+      final oldMsg = _messages[i];
+      final newMsg = newMessages[i];
+
+      if (oldMsg is! Map || newMsg is! Map) return true;
+
+      final oldId = oldMsg['id'];
+      final newId = newMsg['id'];
+
+      if (oldId != null && newId != null) {
+        if (oldId != newId) return true;
+        if (oldMsg['lu'] != newMsg['lu']) return true;
+      } else {
+        // Fallback : comparer contenu + created_at + lu
+        if (oldMsg['contenu'] != newMsg['contenu'] ||
+            oldMsg['created_at'] != newMsg['created_at'] ||
+            oldMsg['lu'] != newMsg['lu']) {
+          return true;
+        }
+      }
+    }
+
+    return false; // Aucun changement
+  }
+
+  // ============================================================
+  // FORMAT HEURE
+  // ============================================================
+
   String _formatHeure(String? dateStr) {
     if (dateStr == null || dateStr.isEmpty) return '';
 
     try {
-      // ✅ 1. Parser la date ISO
-      final date = DateTime.parse(dateStr)
-          .toLocal(); // Local = heure du téléphone
-
-      // ✅ 2. Extraire heures et minutes
+      final date = DateTime.parse(dateStr).toLocal();
       final h = date.hour.toString().padLeft(2, '0');
       final m = date.minute.toString().padLeft(2, '0');
-
       return '$h:$m';
     } catch (e) {
       debugPrint('❌ Erreur parsing date : $e');
@@ -112,45 +174,121 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+  // ============================================================
+  // EXTRACTION DU MESSAGE ET DU QR CODE
+  // ============================================================
+
+  String _extraireTexteMessage(String contenu) {
+    final indexData = contenu.indexOf('---QR_CODE_DATA---');
+    if (indexData == -1) return contenu;
+
+    return contenu.substring(0, indexData).trim();
+  }
+
+  String? _extraireQrCodeData(String contenu) {
+    final start = contenu.indexOf('---QR_CODE_DATA---');
+    final end = contenu.indexOf('---QR_CODE_IMAGE---');
+    if (start == -1 || end == -1) return null;
+
+    return contenu.substring(start + 18, end).trim();
+  }
+
+  String? _extraireQrCodeImage(String contenu) {
+    final start = contenu.indexOf('---QR_CODE_IMAGE---');
+    if (start == -1) return null;
+
+    final base64Part = contenu.substring(start + 20).trim();
+    return base64Part.isNotEmpty ? base64Part : null;
+  }
+
+  Uint8List? _decoderQrCodeImage(String? base64String) {
+    if (base64String == null || base64String.isEmpty) return null;
+
+    try {
+      String cleaned = base64String;
+      if (cleaned.contains(',')) {
+        cleaned = cleaned.split(',').last;
+      }
+      saveQRCodeToFile(base64Decode(cleaned.trim()));
+      return base64Decode(cleaned.trim());
+    } catch (e) {
+      debugPrint('❌ Erreur décodage base64 : $e');
+      return null;
+    }
+  }
+
+  void saveQRCodeToFile(Uint8List qrBytes) async {
+    final svqr = await SecureStorageService.getQR();
+    if (svqr == null || svqr.isEmpty) {
+      await SecureStorageService.saveQR(qrCode: base64Encode(qrBytes));
+      print('✅ QR Code sauvegardé dans le stockage sécurisé');
+    } else {
+      print('ℹ️ QR Code déjà présent dans le stockage sécurisé');
+    }
+  }
+  // ============================================================
+  // ENVOYER UN MESSAGE
+  // ============================================================
+
   void _envoyerMessage() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
     final now = DateTime.now();
-    final time =
-        '${now.hour.toString().padLeft(2, '0')}:'
-        '${now.minute.toString().padLeft(2, '0')}';
 
     setState(() {
       _messages.add({
+        'id': 'local_${now.millisecondsSinceEpoch}', // ✅ ID unique local
         'contenu': text,
         'created_at': now.toString(),
         'is_mine': true,
         'lu': false,
       });
-      sendMsg(msgData?['contact']['id'], text);
     });
+
+    _envoyerMessageAPI(text);
 
     _controller.clear();
     _focusNode.requestFocus();
+
     _scrollToBottom();
+  }
+
+  Future<void> _envoyerMessageAPI(String text) async {
+    try {
+      await sendMsg(msgData?['contact']?['id'], text);
+    } catch (e) {
+      debugPrint('❌ Erreur envoi message : $e');
+      if (!mounted || _isDisposed) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Impossible d\'envoyer le message'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
+      if (!_scrollController.hasClients) return;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_scrollController.hasClients) return;
+
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 100),
           curve: Curves.easeOut,
         );
-      }
+      });
     });
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // BUILD
-  // ------------------------------------------------------------
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -170,12 +308,12 @@ class _ChatPageState extends State<ChatPage> {
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: const Color(0xFF6C63FF),
-                  /*  backgroundImage: contactAvatar != null
-                     ? NetworkImage(contactAvatar!)
-                      : null, */
+                  backgroundColor: AppColors.couleur4,
                   child: Text(
-                    msgData?['contact']['initiales'].toUpperCase() ?? '',
+                    msgData?['contact']?['initiales']
+                            ?.toString()
+                            .toUpperCase() ??
+                        '',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -205,26 +343,27 @@ class _ChatPageState extends State<ChatPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    msgData?['contact']['name'] ?? '',
+                    msgData?['contact']?['name']?.toString() ?? 'Contact',
                     style: const TextStyle(
                       color: Colors.black,
-                      fontSize: 12,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                  /*
                   Text(
                     isOnline ? 'En ligne' : 'Hors ligne',
                     style: TextStyle(
                       color: isOnline ? Colors.green : Colors.grey[600],
                       fontSize: 12,
                     ),
-                  ),
+                  ),*/
                 ],
               ),
             ),
           ],
         ),
-        actions: [
+        /* actions: [
           IconButton(
             onPressed: () {},
             icon: const Icon(Icons.call, color: Color(0xFF6C63FF)),
@@ -233,7 +372,7 @@ class _ChatPageState extends State<ChatPage> {
             onPressed: () {},
             icon: const Icon(Icons.more_vert, color: Colors.black),
           ),
-        ],
+        ], */
       ),
       body: Column(
         children: [
@@ -249,10 +388,15 @@ class _ChatPageState extends State<ChatPage> {
                     itemCount: _messages.length,
                     itemBuilder: (context, index) {
                       final msg = _messages[index];
+
+                      // ✅ CLÉ UNIQUE pour éviter le flicker
+                      final String key = msg['id']?.toString() ?? 'msg_$index';
+
                       return _buildChatBubble(
-                        message: msg['contenu'],
-                        time: _formatHeure(msg['created_at']),
-                        isMe: msg['is_mine'],
+                        key: ValueKey(key),
+                        message: msg['contenu']?.toString() ?? '',
+                        time: _formatHeure(msg['created_at']?.toString()),
+                        isMe: msg['is_mine'] ?? false,
                         isRead: msg['lu'] ?? false,
                         index: index,
                       );
@@ -269,18 +413,28 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  // ------------------------------------------------------------
-  // BULLE DE MESSAGE
-  // ------------------------------------------------------------
+  // ============================================================
+  // BULLE DE MESSAGE (avec QR Code)
+  // ============================================================
 
   Widget _buildChatBubble({
+    Key? key,
     required String message,
     required String time,
     required bool isMe,
     required bool isRead,
     required int index,
   }) {
+    // ✅ Extraire les 3 parties du message
+    final texteMessage = _extraireTexteMessage(message);
+    final qrData = _extraireQrCodeData(message);
+    final qrImageBase64 = _extraireQrCodeImage(message);
+    final qrBytes = _decoderQrCodeImage(qrImageBase64);
+
+    final hasQrCode = qrBytes != null;
+
     return Padding(
+      key: key, // ✅ Passer la clé au widget racine
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: Row(
         mainAxisAlignment: isMe
@@ -293,35 +447,33 @@ class _ChatPageState extends State<ChatPage> {
             CircleAvatar(
               radius: 18,
               backgroundColor: Colors.grey[400],
-              /* backgroundImage: contactAvatar != null
-                  ? NetworkImage(contactAvatar!)
-                  : null, */
               child: Text(
-                msgData?['contact']['initiales'].toUpperCase() ?? '',
+                msgData?['contact']?['initiales']?.toString().toUpperCase() ??
+                    '?',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 20,
+                  fontSize: 14,
                 ),
               ),
             ),
             const SizedBox(width: 8),
           ],
 
-          // ✅ Bulle
+          // BULLE DE MESSAGE
           Flexible(
             child: GestureDetector(
-              onLongPress: () => _afficherOptionsMessage(index),
+              onLongPress: () {}, //_afficherOptionsMessage(index),
               child: Container(
                 constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.7,
+                  maxWidth: MediaQuery.of(context).size.width * 0.75,
                 ),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: isMe ? const Color(0xFF6C63FF) : Colors.grey[200],
+                  color: isMe ? AppColors.couleur4 : Colors.grey[200],
                   borderRadius: BorderRadius.only(
                     topLeft: const Radius.circular(18),
                     topRight: const Radius.circular(18),
@@ -343,10 +495,10 @@ class _ChatPageState extends State<ChatPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ✅ Nom (si pas moi)
+                    // Nom (si pas moi)
                     if (!isMe) ...[
                       Text(
-                        contactName,
+                        msgData?['contact']?['name']?.toString() ?? 'Contact',
                         style: TextStyle(
                           color: Colors.grey[700],
                           fontWeight: FontWeight.bold,
@@ -356,15 +508,57 @@ class _ChatPageState extends State<ChatPage> {
                       const SizedBox(height: 4),
                     ],
 
-                    // ✅ Message
-                    Text(
-                      message,
-                      style: TextStyle(
-                        color: isMe ? Colors.white : Colors.black87,
-                        fontSize: 15,
-                        height: 1.3,
+                    // ✅ TEXTE DU MESSAGE
+                    if (texteMessage.isNotEmpty)
+                      Text(
+                        texteMessage,
+                        style: TextStyle(
+                          color: isMe ? Colors.white : Colors.black87,
+                          fontSize: 15,
+                          height: 1.3,
+                        ),
                       ),
-                    ),
+
+                    // ✅ IMAGE DU QR CODE
+                    if (hasQrCode) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.grey[300]!,
+                            width: 1,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            GestureDetector(
+                              onTap: () => _afficherQrCodePleinEcran(qrBytes),
+                              child: Image.memory(
+                                qrBytes,
+                                width: 200,
+                                height: 200,
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    width: 200,
+                                    height: 200,
+                                    color: Colors.grey[200],
+                                    child: const Icon(
+                                      Icons.broken_image,
+                                      size: 40,
+                                      color: Colors.grey,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
 
                     const SizedBox(height: 4),
 
@@ -403,9 +597,62 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
+  // AFFICHER LE QR CODE EN PLEIN ÉCRAN
+  // ============================================================
+
+  void _afficherQrCodePleinEcran(Uint8List qrBytes) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Mon QR Code',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              Image.memory(
+                qrBytes,
+                width: 280,
+                height: 280,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close),
+                label: const Text('Fermer'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6C63FF),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
   // ZONE DE SAISIE
-  // ------------------------------------------------------------
+  // ============================================================
 
   Widget _buildInput() {
     return Container(
@@ -425,17 +672,6 @@ class _ChatPageState extends State<ChatPage> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            // ✅ Bouton pièce jointe
-            /*  IconButton(
-              onPressed: () {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('Pièce jointe')));
-              },
-              icon: const Icon(Icons.attach_file, color: Color(0xFF6C63FF)),
-            ), */
-
-            // ✅ Champ de saisie
             Expanded(
               child: Container(
                 constraints: const BoxConstraints(maxHeight: 120),
@@ -471,10 +707,14 @@ class _ChatPageState extends State<ChatPage> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6C63FF),
+                  color: _hasText ? AppColors.couleur4 : Colors.grey[300],
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.send, color: Colors.white, size: 20),
+                child: Icon(
+                  Icons.send,
+                  color: _hasText ? Colors.white : Colors.grey[500],
+                  size: 20,
+                ),
               ),
             ),
           ],
@@ -483,11 +723,13 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // OPTIONS AU LONG PRESS
-  // ------------------------------------------------------------
+  // ============================================================
 
   void _afficherOptionsMessage(int index) {
+    if (index < 0 || index >= _messages.length) return;
+
     showModalBottomSheet(
       context: context,
       builder: (context) => Container(
@@ -517,9 +759,10 @@ class _ChatPageState extends State<ChatPage> {
                 style: TextStyle(color: Colors.red),
               ),
               onTap: () {
-                setState(() => _messages.removeAt(index));
+                if (index >= 0 && index < _messages.length) {
+                  setState(() => _messages.removeAt(index));
+                }
                 Navigator.pop(context);
-                //context.pop();
               },
             ),
           ],
@@ -528,6 +771,10 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
+  // ============================================================
+  // ENREGISTREMENT AUDIO (non utilisé)
+  // ============================================================
+
   Future<void> _startRecording() async {
     try {
       if (!await _recorder.hasPermission()) {
@@ -535,14 +782,10 @@ class _ChatPageState extends State<ChatPage> {
         return;
       }
 
-      // ✅ 1. Définir le chemin du fichier
       final Directory dir = await getApplicationDocumentsDirectory();
       final String path =
           'yaf/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
-      //'${dir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
-
-      // ✅ 2. Configuration
       const config = RecordConfig(
         encoder: AudioEncoder.aacLc,
         sampleRate: 44100,
@@ -550,7 +793,6 @@ class _ChatPageState extends State<ChatPage> {
         bitRate: 128000,
       );
 
-      // ✅ 3. Démarrer (retourne void, le chemin est déjà connu)
       await _recorder.start(config, path: path);
 
       if (!mounted) return;
@@ -572,7 +814,6 @@ class _ChatPageState extends State<ChatPage> {
       await _recorder.pause();
       if (!mounted) return;
       setState(() => _isPaused = true);
-      debugPrint('⏸️ Enregistrement en pause');
     } catch (e) {
       debugPrint('❌ Erreur pause : $e');
     }
@@ -583,7 +824,6 @@ class _ChatPageState extends State<ChatPage> {
       await _recorder.resume();
       if (!mounted) return;
       setState(() => _isPaused = false);
-      debugPrint('▶️ Enregistrement repris');
     } catch (e) {
       debugPrint('❌ Erreur resume : $e');
     }
@@ -591,7 +831,6 @@ class _ChatPageState extends State<ChatPage> {
 
   Future<void> _stopRecording() async {
     try {
-      // ✅ stop() retourne le chemin final du fichier
       final path = await _recorder.stop();
 
       if (!mounted) return;
@@ -608,16 +847,24 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+  // ============================================================
+  // DISPOSE
+  // ============================================================
+
   @override
   void dispose() {
+    _isDisposed = true;
+
     _scrollController.dispose();
     _controller.dispose();
     _focusNode.dispose();
+
     _recordSub?.cancel();
     _recorder.dispose();
 
     _streamSubscription?.cancel();
     _msgidservice.arreter();
+
     super.dispose();
   }
 }

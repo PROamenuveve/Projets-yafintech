@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:yafintech/screen/fenetre/audio.dart';
 import 'package:yafintech/screen/fenetre/chat.dart';
 import 'package:yafintech/screen/fenetre/chatIA.dart';
-import 'package:yafintech/screen/fenetre/chatlist.dart';
 import 'package:yafintech/screen/home_screen/evenement.dart';
 import 'package:yafintech/screen/fenetre/pdf_page.dart';
 import 'package:yafintech/screen/fenetre/pdf_widget.dart';
@@ -35,7 +34,7 @@ late MyAudioHandler audioHandler;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   String? token = await SecureStorageService.getAccessToken();
-  print('Token from secure storage:📱📱📱📱📱📱 $token');
+  print('Token from secure storage:📱📱  $token');
   routes = GoRouter(
     initialLocation: token == null || token.isEmpty ? '/connexion' : '/',
     //initialLocation: '/',
@@ -102,7 +101,6 @@ void main() async {
         },
       ),
 
-      GoRoute(path: '/chartlist', builder: (context, state) => ChatListPage()),
       GoRoute(
         path: '/chart',
         builder: (context, state) {
@@ -111,7 +109,7 @@ void main() async {
         },
       ),
       GoRoute(
-        path: '/chartia',
+        path: '/chatia',
         builder: (context, state) {
           return ChatIAPage();
         },
@@ -121,6 +119,13 @@ void main() async {
         builder: (context, state) => AudioRecorderWidget(),
       ),
       GoRoute(path: '/event', builder: (context, state) => EventPage()),
+      GoRoute(
+        path: '/ongle',
+        builder: (context, state) {
+          final extra = state.extra as int? ?? 0;
+          return Onglets(index: extra);
+        },
+      ),
     ],
   );
 

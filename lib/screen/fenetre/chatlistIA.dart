@@ -239,8 +239,6 @@ class _ChatListIAPageState extends State<ChatListIAPage> {
       ),
       onTap: () {
         context.push('/chart', extra: conv?['id'] ?? 69);
-        final u = conv?['id'];
-        print("😒😒😒😒😒😒 $u ");
       },
     );
   }

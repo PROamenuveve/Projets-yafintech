@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:yafintech/core/theme/app_color.dart';
 import 'package:yafintech/screen/home_screen/formation.dart';
 import 'package:yafintech/screen/home_screen/mesRessource.dart';
 import 'package:yafintech/screen/home_screen/ressource.dart';
 
 class Onglets extends StatefulWidget {
-  const Onglets({super.key});
+  final int index;
+  const Onglets({super.key, required this.index});
 
   @override
   State<Onglets> createState() => _OngletsState();
@@ -13,8 +16,6 @@ class Onglets extends StatefulWidget {
 class _OngletsState extends State<Onglets> {
   @override
   Widget build(BuildContext context) {
-    // ✅ 1. On enveloppe tout dans un DefaultTabController
-
     final TabBarView listOngle = TabBarView(
       children: [
         Center(child: Formation()),
@@ -24,12 +25,18 @@ class _OngletsState extends State<Onglets> {
     );
     return DefaultTabController(
       length: listOngle.children.length,
-      initialIndex: 0,
+      initialIndex: widget.index,
       child: Scaffold(
         appBar: AppBar(
           title: const Text(
             'Etudes',
             style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          ),
+          leading: IconButton(
+            onPressed: () {
+              context.pop();
+            },
+            icon: Icon(Icons.arrow_back),
           ),
           actions: [
             IconButton(
@@ -40,6 +47,7 @@ class _OngletsState extends State<Onglets> {
             ),
           ],
           bottom: const TabBar(
+            labelColor: AppColors.couleur2,
             tabs: [
               Tab(text: 'Formations'),
               Tab(text: 'Ressources'),
@@ -51,7 +59,7 @@ class _OngletsState extends State<Onglets> {
             indicatorColor: Colors.white,
           ),
         ),
-        // ✅ 3. On ajoute le TabBarView dans le body
+
         body: listOngle,
       ),
     );

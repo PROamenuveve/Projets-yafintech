@@ -36,7 +36,7 @@ class _FormationState extends State<Formation> {
           } else {
             formationData = data as Map<String, dynamic>;
           }
-          print('📚📚📚📚📚📚📚📚📚  : formationData');
+          print('📚  : formationData');
         });
       } else {
         setState(() {

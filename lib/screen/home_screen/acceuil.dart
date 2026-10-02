@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:yafintech/core/outils/outils.dart';
 import 'package:yafintech/core/theme/app_color.dart';
 import 'package:yafintech/screen/home_screen/carousel_page.dart';
 import 'package:yafintech/services/auth_service.dart';
@@ -40,7 +41,7 @@ class _AcceuilState extends State<Acceuil> with SingleTickerProviderStateMixin {
 
       setState(() {
         _live = live;
-        print('💿💿💿💿💿💿💿💿💿  live');
+        print('💿 live');
       });
 
       _updateAnimation();
@@ -60,7 +61,7 @@ class _AcceuilState extends State<Acceuil> with SingleTickerProviderStateMixin {
         jsUser = Map<String, dynamic>.from(data);
       });
 
-      debugPrint('✅ jsUser mis à jour : ${jsUser?['name']}');
+      debugPrint(' jsUser : ${jsUser['name']}');
     } catch (e) {
       debugPrint('❌ Erreur userGet : $e');
     }
@@ -75,12 +76,10 @@ class _AcceuilState extends State<Acceuil> with SingleTickerProviderStateMixin {
 
   void _updateAnimation() {
     if (_isLiveActive()) {
-      // ✅ Live actif → démarrer la pulsation
       if (!_pulseController.isAnimating) {
         _pulseController.repeat(reverse: true);
       }
     } else {
-      // ❌ Pas de live → arrêter la pulsation
       if (_pulseController.isAnimating) {
         _pulseController.stop();
         _pulseController.reset();
@@ -94,8 +93,8 @@ class _AcceuilState extends State<Acceuil> with SingleTickerProviderStateMixin {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text(
-          jsUser?['name'] ?? 'Nom ',
-          maxLines: 3,
+          jsUser['name'] ?? 'Nom ',
+          maxLines: 2,
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         actions: [
@@ -122,9 +121,9 @@ class _AcceuilState extends State<Acceuil> with SingleTickerProviderStateMixin {
             onPressed: () => context.push('/scanner'),
             icon: const Icon(Icons.qr_code_scanner),
           ),
-          IconButton(
+          /* IconButton(
             onPressed: () async {
-              // context.push('/audio');
+              //context.push('/ongle', extra: 0);
             },
             icon: const Icon(Icons.gps_not_fixed),
           ),
@@ -133,14 +132,32 @@ class _AcceuilState extends State<Acceuil> with SingleTickerProviderStateMixin {
               //context.push('/event');
             },
             icon: const Icon(Icons.more_vert),
-          ),
+          ), */
         ],
       ),
       body: Container(
         //color: const Color.fromARGB(255, 205, 200, 216),
         child: Column(
           children: [
+            AppOutils.espace20,
             Container(
+              margin: const EdgeInsets.only(top: 10),
+              child: Text(
+                jsUser['church_name'] ?? 'Nom de l\'église',
+                maxLines: 2,
+                style: TextStyle(
+                  color: AppColors.couleur2,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  /* decorationColor: AppColors.couleur2,
+                  decoration: TextDecoration.underline,
+                  decorationStyle: TextDecorationStyle.solid,
+                  decorationThickness: 2, */
+                ),
+              ),
+            ),
+            AppOutils.espace50,
+            /* Container(
               padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
               child: Column(
                 children: [
@@ -162,7 +179,7 @@ class _AcceuilState extends State<Acceuil> with SingleTickerProviderStateMixin {
                   ),
                 ],
               ),
-            ),
+            ), */
             const SingleChildScrollView(
               child: Column(children: [MonCarrousel()]),
             ),

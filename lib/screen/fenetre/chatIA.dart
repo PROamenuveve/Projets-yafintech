@@ -2,13 +2,15 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+import 'package:yafintech/core/theme/app_color.dart';
 import 'package:yafintech/services/auth_service.dart';
 import 'package:yafintech/services/reload_service.dart';
 
 // ============================================================
-// PAGE DE CHAT COMPLÈTE
+// PAGE DE CHAT IA
 // ============================================================
 
 class ChatIAPage extends StatefulWidget {
@@ -23,87 +25,106 @@ class _ChatIAPageState extends State<ChatIAPage> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
 
-  Map<String, dynamic>? msgIAData;
-  late final msgIAId _msgiaidservice = msgIAId();
+  //  Service des discussions
+  Map<String, dynamic>? disIAData;
+  late final convIA _disiaservice = convIA();
   StreamSubscription? _streamSubscription;
 
-  // ✅ Données hardcodées
-  final String contactName = 'Jean Dupont';
-  final String? contactAvatar = '';
-  final bool isOnline = true;
+  Map<String, dynamic>? chatIAData;
+  int chatid = 0;
+  chatIA? _chatiaservice;
+  StreamSubscription? _streamChatia;
+
+  bool selcdisc = false;
+
+  bool _shouldAutoScroll = true;
+
+  // ✅ Flags pour la nouvelle discussion
+  bool newDisc = true;
+  bool clicNewdisc = false;
+
+  // ✅ Flag pour l'animation "réfléchit"
+  bool _isAIThinking = false;
 
   bool _hasText = false;
-  final AudioRecorder _recorder = AudioRecorder();
-  bool _isRecording = false;
-  bool _isPaused = false;
-  String? _filePath;
-  StreamSubscription<RecordState>? _recordSub;
-  RecordState _recordState = RecordState.stop;
 
+  List<dynamic> _discutions = [];
   List<dynamic> _messages = [];
+
+  bool _isDisposed = false;
+
+  // ============================================================
+  // INIT
+  // ============================================================
 
   @override
   void initState() {
     super.initState();
+
     _controller.addListener(() {
       final hasText = _controller.text.trim().isNotEmpty;
       if (hasText != _hasText) {
         setState(() => _hasText = hasText);
       }
     });
-    _scrollToBottom();
-    _recordSub = _recorder.onStateChanged().listen((state) {
-      if (mounted) {
-        setState(() => _recordState = state);
+
+    _scrollController.addListener(() {
+      if (_scrollController.hasClients) {
+        final isAtBottom =
+            _scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 50;
+        _shouldAutoScroll = isAtBottom;
       }
     });
 
-    _streamSubscription = _msgiaidservice.msiaidStream.listen((data) {
-      if (!mounted) return;
+    _streamSubscription = _disiaservice.msiaidStream.listen(
+      (data) {
+        if (!mounted || _isDisposed) return;
 
-      setState(() {
-        if (data == null) {
-          msgIAData = null;
-          _messages = [];
-          return;
+        if (data != null) {
+          final discussions = data is Map ? (data['data'] ?? []) : (data ?? []);
+
+          setState(() {
+            // ✅ NE PAS écraser newDisc si l'utilisateur a cliqué "Nouvelle discussion"
+            if (!clicNewdisc) {
+              newDisc = discussions.isEmpty;
+            }
+            _discutions = discussions is List ? discussions : [];
+          });
+
+          print('💫 ${_discutions.length} discussions');
+
+          // - Pas déjà sélectionnée
+          // - Pas en mode "nouvelle discussion"
+          // - La liste n'est pas vide
+          if (!selcdisc && !clicNewdisc && _discutions.isNotEmpty) {
+            final firstId = _discutions[0]?['id'];
+            if (firstId != null && firstId is int && firstId > 0 && !newDisc) {
+              _chargerConversation(firstId);
+            }
+          }
         }
+      },
+      onError: (error) {
+        debugPrint('❌ Erreur discussions : $error');
+      },
+      cancelOnError: false,
+    );
 
-        // Normalise TOUJOURS en Map
-        if (data is List) {
-          msgIAData = {'messages': data};
-        } else if (data is Map<String, dynamic>) {
-          msgIAData = data;
-        } else {
-          msgIAData = {'messages': []};
-        }
-
-        // Remplit _messages depuis msgData quelle que soit la source
-        final raw = msgIAData?['messages'];
-        _messages = (raw is List) ? List<dynamic>.from(raw) : <dynamic>[];
-
-        print('🥛 msgData = msgData');
-        print('🏈 _messages.length = _messages');
-      });
-    });
-
-    _msgiaidservice.demarrer(interval: const Duration(seconds: 20));
+    _disiaservice.demarrer(interval: const Duration(seconds: 10));
   }
 
-  // ------------------------------------------------------------
-  // ENVOYER UN MESSAGE
-  // ------------------------------------------------------------
+  // ============================================================
+  // FORMAT HEURE
+  // ============================================================
+
   String _formatHeure(String? dateStr) {
     if (dateStr == null || dateStr.isEmpty) return '';
 
     try {
-      // ✅ 1. Parser la date ISO
-      final date = DateTime.parse(dateStr)
-          .toLocal(); // Local = heure du téléphone
-
-      // ✅ 2. Extraire heures et minutes
+      final date = DateTime.parse(dateStr).toLocal();
       final h = date.hour.toString().padLeft(2, '0');
       final m = date.minute.toString().padLeft(2, '0');
-
       return '$h:$m';
     } catch (e) {
       debugPrint('❌ Erreur parsing date : $e');
@@ -111,45 +132,254 @@ class _ChatIAPageState extends State<ChatIAPage> {
     }
   }
 
+  // ============================================================
+  // CHARGER UNE CONVERSATION
+  // ============================================================
+
+  void _chargerConversation(int id) async {
+    print('🔄 Chargement conversation : $id');
+
+    setState(() {
+      chatid = id;
+      newDisc = false;
+      clicNewdisc = false;
+    });
+
+    _streamChatia?.cancel();
+    _streamChatia = null;
+    _chatiaservice?.arreter();
+    _chatiaservice = null;
+
+    // ✅ 3. Créer le nouveau service
+    _chatiaservice = chatIA(id);
+
+    _streamChatia = _chatiaservice!.chatiaStream.listen(
+      (data) {
+        if (!mounted || _isDisposed) return;
+
+        if (data != null) {
+          try {
+            final messagesList = data is Map
+                ? (data['messages'] ?? [])
+                : (data ?? []);
+
+            setState(() {
+              _messages = messagesList is List
+                  ? List<dynamic>.from(messagesList)
+                  : [];
+            });
+
+            print('💫 ${_messages.length} messages chargés');
+
+            if (_shouldAutoScroll) {
+              _scrollToBottom();
+            }
+          } catch (e) {
+            debugPrint('❌ Erreur traitement messages : $e');
+          }
+        }
+      },
+      onError: (error) {
+        debugPrint('❌ Erreur chat : $error');
+      },
+      cancelOnError: false,
+    );
+
+    _chatiaservice!.demarrer(interval: const Duration(seconds: 10));
+  }
+
+  // ============================================================
+  // ENVOYER UN MESSAGE
+  // ============================================================
+
   void _envoyerMessage() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
-    final now = DateTime.now();
-    final time =
-        '${now.hour.toString().padLeft(2, '0')}:'
-        '${now.minute.toString().padLeft(2, '0')}';
+    final bool isNewDiscussion = newDisc;
 
-    setState(() {
-      _messages.add({
-        'contenu': text,
-        'created_at': now.toString(),
-        'is_mine': true,
-        'lu': false,
+    if (isNewDiscussion) {
+      final now = DateTime.now();
+
+      setState(() {
+        _messages.clear();
+        _messages.add({
+          "id": 0,
+          "assistant_conversation_id": chatid,
+          "expediteur": "utilisateur",
+          "contenu": text,
+          "created_at": now.toIso8601String(),
+          "updated_at": now.toIso8601String(),
+        });
+
+        _shouldAutoScroll = true;
+        _isAIThinking = true;
+
+        newDisc = false;
+        clicNewdisc = false;
       });
-      sendMsg(msgIAData?['contact']['id'], text);
-    });
 
-    _controller.clear();
-    _focusNode.requestFocus();
+      _envoyerMessageAPI(text, isNewDiscussion);
+
+      _controller.clear();
+      _focusNode.requestFocus();
+    } else {
+      //  Vérifier qu'une conversation est chargée
+      if (chatid <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sélectionnez une conversation d\'abord'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
+      final now = DateTime.now();
+
+      // ✅ Ajouter dans _messages
+      setState(() {
+        _messages.add({
+          "id": 0,
+          "assistant_conversation_id": chatid,
+          "expediteur": "utilisateur",
+          "contenu": text,
+          "created_at": now.toIso8601String(),
+          "updated_at": now.toIso8601String(),
+        });
+
+        _shouldAutoScroll = true;
+        _isAIThinking = true;
+      });
+
+      _envoyerMessageAPI(text, isNewDiscussion);
+
+      _controller.clear();
+      _focusNode.requestFocus();
+    }
+
+    // ✅ Scroll après envoi
     _scrollToBottom();
   }
 
+  // ============================================================
+  // ENVOYER MESSAGE À L'API
+  // ============================================================
+
+  Future<void> _envoyerMessageAPI(String text, bool isNewDiscussion) async {
+    if (isNewDiscussion) {
+      print('💫💫 nouvelle discussion');
+      try {
+        final response = await newIADisc(text);
+        print('📥 Réponse newIADisc : $response');
+
+        if (!mounted || _isDisposed) return;
+
+        // ✅ 3. Essayer d'extraire l'ID
+        int? newConvId;
+
+        if (response is Map) {
+          if (response['id'] is int) {
+            newConvId = response['id'];
+            sendIAMsg(response['id'], text);
+          } else if (response['data'] is Map && response['data']['id'] is int) {
+            newConvId = response['data']['id'];
+          } else if (response['conversation_id'] is int) {
+            newConvId = response['conversation_id'];
+          } else if (response['conversation'] is Map &&
+              response['conversation']['id'] is int) {
+            newConvId = response['conversation']['id'];
+          }
+        }
+
+        setState(() {
+          _isAIThinking = false;
+        });
+
+        if (newConvId != null && newConvId > 0) {
+          print('✅ Nouvelle conversation créée avec ID : $newConvId');
+
+          setState(() {
+            selcdisc = true;
+            clicNewdisc = false;
+            newDisc = false;
+          });
+
+          _chargerConversation(newConvId);
+        } else {
+          print('⚠️ Impossible d\'extraire l\'ID de la réponse');
+
+          setState(() {
+            newDisc = false;
+            selcdisc = false;
+            clicNewdisc = false;
+          });
+        }
+      } catch (e) {
+        debugPrint('❌ Erreur envoi message : $e');
+        if (!mounted || _isDisposed) return;
+        setState(() {
+          _isAIThinking = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Impossible d\'envoyer le message'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } else {
+      print('💫 discussion existante');
+      try {
+        await sendIAMsg(chatid, text);
+
+        if (mounted && !_isDisposed) {
+          setState(() {
+            _isAIThinking = false;
+          });
+        }
+      } catch (e) {
+        debugPrint('❌ Erreur envoi message IA : $e');
+        if (!mounted || _isDisposed) return;
+
+        setState(() {
+          _isAIThinking = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Impossible d\'envoyer le message'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  // ============================================================
+  // SCROLL TO BOTTOM
+  // ============================================================
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
+      if (!_scrollController.hasClients) return;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_scrollController.hasClients) return;
+
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
-      }
+      });
     });
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // BUILD
-  // ------------------------------------------------------------
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -158,64 +388,25 @@ class _ChatIAPageState extends State<ChatIAPage> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 1,
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: Colors.black),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
         ),
         title: Row(
           children: [
-            // Avatar
-            Stack(
-              children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: const Color(0xFF6C63FF),
-                  /*  backgroundImage: contactAvatar != null
-                     ? NetworkImage(contactAvatar!)
-                      : null, */
-                  child: Text(
-                    msgIAData?['contact']['initiales'].toUpperCase() ?? '',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                    ),
-                  ),
-                ),
-                if (isOnline)
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: Colors.green,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                children: const [
                   Text(
-                    msgIAData?['contact']['name'] ?? '',
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    isOnline ? 'En ligne' : 'Hors ligne',
+                    'Assistance',
                     style: TextStyle(
-                      color: isOnline ? Colors.green : Colors.grey[600],
-                      fontSize: 12,
+                      color: Colors.black,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
@@ -223,43 +414,121 @@ class _ChatIAPageState extends State<ChatIAPage> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            onPressed: () {
-              print('hummmmmmm');
-            },
-            icon: const Icon(Icons.call, color: Color(0xFF6C63FF)),
-          ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.more_vert, color: Colors.black),
-          ),
-        ],
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              child: Column(
+                children: [
+                  const Text(
+                    'Discussion',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: FloatingActionButton.extended(
+                        backgroundColor: AppColors.couleur2,
+                        onPressed: () {
+                          Navigator.pop(context);
+
+                          // ✅ 1. Arrêter l'ancien service de chat
+                          _streamChatia?.cancel();
+                          _streamChatia = null;
+                          _chatiaservice?.arreter();
+                          _chatiaservice = null;
+
+                          setState(() {
+                            newDisc = true;
+                            selcdisc = true;
+                            clicNewdisc = true;
+                            chatid = 0;
+                            _messages.clear();
+                            _isAIThinking = false;
+                            _controller.clear();
+                            _focusNode.requestFocus();
+                          });
+
+                          print('🆕 Nouvelle discussion créée (mode)');
+                        },
+                        label: const Text(
+                          'Nouvelle discussion',
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (_discutions.isEmpty)
+              const Padding(
+                padding: EdgeInsets.only(top: 30),
+                child: Center(
+                  child: Text(
+                    'Aucune discussion',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
+              )
+            else
+              for (var msg in _discutions)
+                _builDiscution(
+                  id: msg?['id'] ?? 0,
+                  titre: msg?['titre'] ?? 'Sans titre',
+                ),
+          ],
+        ),
       ),
       body: Column(
         children: [
+          if (newDisc)
+            Expanded(
+              child: Center(
+                child: Text(
+                  'Nouvelle discussion',
+                  style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                ),
+              ),
+            ),
+
           // =========================
           // LISTE DES MESSAGES
           // =========================
-          Expanded(
-            child: _messages.isEmpty
-                ? const Center(child: Text('Aucun message'))
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    itemCount: _messages.length,
-                    itemBuilder: (context, index) {
-                      final msg = _messages[index];
-                      return _buildChatBubble(
-                        message: msg['contenu'],
-                        time: _formatHeure(msg['created_at']),
-                        isMe: msg['is_mine'],
-                        isRead: msg['lu'] ?? false,
-                        index: index,
-                      );
-                    },
-                  ),
-          ),
+          if (!newDisc)
+            Expanded(
+              child: (_messages.isEmpty && !_isAIThinking)
+                  ? const Center(child: Text('Aucun message'))
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      // +1 si l'IA réfléchit
+                      itemCount: _messages.length + (_isAIThinking ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        //  Dernier élément = animation
+                        if (_isAIThinking && index == _messages.length) {
+                          return const AIThinkingBubble();
+                        }
+
+                        final msg = _messages[index];
+
+                        return _buildChatBubble(
+                          message: msg['contenu']?.toString() ?? '',
+                          created_at: _formatHeure(
+                            msg['created_at']?.toString(),
+                          ),
+                          expediteur:
+                              msg['expediteur']?.toString() ?? 'assistant',
+                          index: index,
+                        );
+                      },
+                    ),
+            ),
 
           // =========================
           // ZONE DE SAISIE
@@ -270,17 +539,50 @@ class _ChatIAPageState extends State<ChatIAPage> {
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
+  // ITEM DE DISCUSSION (DRAWER)
+  // ============================================================
+
+  Widget _builDiscution({required int id, required String titre}) {
+    return InkWell(
+      onTap: () {
+        selcdisc = true;
+        clicNewdisc = false;
+        newDisc = false;
+        _shouldAutoScroll = true;
+        _chargerConversation(id);
+        Navigator.pop(context);
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                titre,
+                style: const TextStyle(fontSize: 18),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
   // BULLE DE MESSAGE
-  // ------------------------------------------------------------
+  // ============================================================
 
   Widget _buildChatBubble({
     required String message,
-    required String time,
-    required bool isMe,
-    required bool isRead,
+    required String created_at,
+    required String expediteur,
     required int index,
   }) {
+    final isMe = expediteur == "utilisateur";
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: Row(
@@ -289,75 +591,28 @@ class _ChatIAPageState extends State<ChatIAPage> {
             : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // ✅ Avatar (si pas moi)
-          if (!isMe) ...[
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: Colors.grey[400],
-              /* backgroundImage: contactAvatar != null
-                  ? NetworkImage(contactAvatar!)
-                  : null, */
-              child: Text(
-                msgIAData?['contact']['initiales'].toUpperCase() ?? '',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
-
-          // ✅ Bulle
           Flexible(
             child: GestureDetector(
-              onLongPress: () => _afficherOptionsMessage(index),
+              onLongPress: () {}, //_afficherOptionsMessage(index),
               child: Container(
                 constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.7,
+                  maxWidth: isMe
+                      ? MediaQuery.of(context).size.width * 0.85
+                      : MediaQuery.of(context).size.width * 1,
                 ),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: isMe ? const Color(0xFF6C63FF) : Colors.grey[200],
-                  borderRadius: BorderRadius.only(
-                    topLeft: const Radius.circular(18),
-                    topRight: const Radius.circular(18),
-                    bottomLeft: isMe
-                        ? const Radius.circular(18)
-                        : const Radius.circular(4),
-                    bottomRight: isMe
-                        ? const Radius.circular(4)
-                        : const Radius.circular(18),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 5,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                  color: isMe
+                      ? const Color.fromARGB(255, 49, 48, 60)
+                      : Colors.grey[200],
+                  borderRadius: BorderRadius.circular(18),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ✅ Nom (si pas moi)
-                    if (!isMe) ...[
-                      Text(
-                        contactName,
-                        style: TextStyle(
-                          color: Colors.grey[700],
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                    ],
-
-                    // ✅ Message
                     Text(
                       message,
                       style: TextStyle(
@@ -366,33 +621,15 @@ class _ChatIAPageState extends State<ChatIAPage> {
                         height: 1.3,
                       ),
                     ),
-
                     const SizedBox(height: 4),
-
-                    // ✅ Heure + lu
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          time,
-                          style: TextStyle(
-                            color: isMe
-                                ? Colors.white.withOpacity(0.7)
-                                : Colors.grey[600],
-                            fontSize: 11,
-                          ),
-                        ),
-                        if (isMe) ...[
-                          const SizedBox(width: 4),
-                          Icon(
-                            isRead ? Icons.done_all : Icons.done,
-                            color: isRead
-                                ? Colors.lightBlueAccent
-                                : Colors.white.withOpacity(0.7),
-                            size: 14,
-                          ),
-                        ],
-                      ],
+                    Text(
+                      created_at,
+                      style: TextStyle(
+                        color: isMe
+                            ? Colors.white.withOpacity(0.7)
+                            : Colors.grey[600],
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),
@@ -404,9 +641,9 @@ class _ChatIAPageState extends State<ChatIAPage> {
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // ZONE DE SAISIE
-  // ------------------------------------------------------------
+  // ============================================================
 
   Widget _buildInput() {
     return Container(
@@ -426,17 +663,6 @@ class _ChatIAPageState extends State<ChatIAPage> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            // ✅ Bouton pièce jointe
-            /* IconButton(
-              onPressed: () {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('Pièce jointe')));
-              },
-              icon: const Icon(Icons.attach_file, color: Color(0xFF6C63FF)),
-            ), */
-
-            // ✅ Champ de saisie
             Expanded(
               child: Container(
                 constraints: const BoxConstraints(maxHeight: 120),
@@ -462,9 +688,7 @@ class _ChatIAPageState extends State<ChatIAPage> {
                 ),
               ),
             ),
-
             const SizedBox(width: 6),
-
             GestureDetector(
               onTap: _hasText ? _envoyerMessage : null,
               child: AnimatedContainer(
@@ -472,17 +696,12 @@ class _ChatIAPageState extends State<ChatIAPage> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6C63FF),
+                  color: _hasText ? AppColors.couleur4 : Colors.grey[300],
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.send,
-                  /*  _hasText
-                     ? Icons.send
-                      : _isRecording
-                      ? Icons.send
-                      : Icons.mic, */
-                  color: Colors.white,
+                  color: _hasText ? Colors.white : Colors.grey[500],
                   size: 20,
                 ),
               ),
@@ -493,11 +712,13 @@ class _ChatIAPageState extends State<ChatIAPage> {
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // OPTIONS AU LONG PRESS
-  // ------------------------------------------------------------
+  // ============================================================
 
   void _afficherOptionsMessage(int index) {
+    if (index < 0 || index >= _messages.length) return;
+
     showModalBottomSheet(
       context: context,
       builder: (context) => Container(
@@ -516,20 +737,16 @@ class _ChatIAPageState extends State<ChatIAPage> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.reply),
-              title: const Text('Répondre'),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
               leading: const Icon(Icons.delete, color: Colors.red),
               title: const Text(
                 'Supprimer',
                 style: TextStyle(color: Colors.red),
               ),
               onTap: () {
-                setState(() => _messages.removeAt(index));
+                if (index >= 0 && index < _messages.length) {
+                  setState(() => _messages.removeAt(index));
+                }
                 Navigator.pop(context);
-                //context.pop();
               },
             ),
           ],
@@ -538,96 +755,107 @@ class _ChatIAPageState extends State<ChatIAPage> {
     );
   }
 
-  Future<void> _startRecording() async {
-    try {
-      if (!await _recorder.hasPermission()) {
-        debugPrint('❌ Permission refusée');
-        return;
-      }
+  // ============================================================
+  // DISPOSE
+  // ============================================================
 
-      // ✅ 1. Définir le chemin du fichier
-      final Directory dir = await getApplicationDocumentsDirectory();
-      final String path =
-          'yaf/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+  @override
+  void dispose() {
+    _isDisposed = true;
 
-      //'${dir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    _scrollController.dispose();
+    _controller.dispose();
+    _focusNode.dispose();
 
-      // ✅ 2. Configuration
-      const config = RecordConfig(
-        encoder: AudioEncoder.aacLc,
-        sampleRate: 44100,
-        numChannels: 1,
-        bitRate: 128000,
-      );
+    _streamSubscription?.cancel();
+    _streamChatia?.cancel();
 
-      // ✅ 3. Démarrer (retourne void, le chemin est déjà connu)
-      await _recorder.start(config, path: path);
+    _chatiaservice?.arreter();
+    _disiaservice.arreter();
 
-      if (!mounted) return;
-
-      setState(() {
-        _isRecording = true;
-        _isPaused = false;
-        _filePath = path;
-      });
-
-      debugPrint('🎙️ Enregistrement démarré : $path');
-    } catch (e) {
-      debugPrint('❌ Erreur start : $e');
-    }
+    super.dispose();
   }
+}
 
-  Future<void> _pauseRecording() async {
-    try {
-      await _recorder.pause();
-      if (!mounted) return;
-      setState(() => _isPaused = true);
-      debugPrint('⏸️ Enregistrement en pause');
-    } catch (e) {
-      debugPrint('❌ Erreur pause : $e');
-    }
-  }
+// ============================================================
+// WIDGET : Animation "L'assistant réfléchit..."
+// ============================================================
 
-  Future<void> _resumeRecording() async {
-    try {
-      await _recorder.resume();
-      if (!mounted) return;
-      setState(() => _isPaused = false);
-      debugPrint('▶️ Enregistrement repris');
-    } catch (e) {
-      debugPrint('❌ Erreur resume : $e');
-    }
-  }
+class AIThinkingBubble extends StatefulWidget {
+  const AIThinkingBubble({super.key});
 
-  Future<void> _stopRecording() async {
-    try {
-      // ✅ stop() retourne le chemin final du fichier
-      final path = await _recorder.stop();
+  @override
+  State<AIThinkingBubble> createState() => _AIThinkingBubbleState();
+}
 
-      if (!mounted) return;
+class _AIThinkingBubbleState extends State<AIThinkingBubble>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
 
-      setState(() {
-        _isRecording = false;
-        _isPaused = false;
-        _filePath = path;
-      });
-
-      debugPrint('✅ Enregistrement sauvegardé : $path');
-    } catch (e) {
-      debugPrint('❌ Erreur stop : $e');
-    }
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
   }
 
   @override
   void dispose() {
-    _scrollController.dispose();
     _controller.dispose();
-    _focusNode.dispose();
-    _recordSub?.cancel();
-    _recorder.dispose();
-
-    _streamSubscription?.cancel();
-    _msgiaidservice.arreter();
     super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ✅ 3 points animés
+                for (int i = 0; i < 3; i++)
+                  AnimatedBuilder(
+                    animation: _controller,
+                    builder: (context, child) {
+                      final delay = i * 0.2;
+                      final value = (_controller.value - delay) % 1.0;
+                      final offset = value < 0.5
+                          ? -6.0 * (value * 2)
+                          : -6.0 * (1 - (value - 0.5) * 2);
+
+                      return Container(
+                        margin: EdgeInsets.only(right: i < 2 ? 4 : 0),
+                        child: Transform.translate(
+                          offset: Offset(0, offset),
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[600],
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

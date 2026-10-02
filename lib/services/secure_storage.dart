@@ -7,6 +7,7 @@ class SecureStorageService {
   static const String refreshTokenKey = 'refresh_token';
   static const String accessUserKey = 'user';
   static const String refreshUserKey = 'refresh_user';
+  static const String userQRKey = 'user_qr';
 
   static Future<void> saveTokens({
     required String accessToken,
@@ -23,7 +24,6 @@ class SecureStorageService {
     try {
       return await _storage.read(key: accessTokenKey);
     } catch (e) {
-      print('Erreur : $e');
       return null;
     }
   }
@@ -55,5 +55,28 @@ class SecureStorageService {
 
   static Future<String?> getRefreshUser() async {
     return await _storage.read(key: refreshUserKey);
+  }
+
+  static Future<void> clearAll() async {
+    await _storage.deleteAll();
+  }
+
+  static Future<void> saveQR({
+    required String qrCode,
+    String? refreshQRcode,
+  }) async {
+    await _storage.write(key: userQRKey, value: qrCode);
+
+    if (refreshQRcode != null) {
+      await _storage.write(key: refreshUserKey, value: refreshQRcode);
+    }
+  }
+
+  static Future<String?> getQR() async {
+    try {
+      return await _storage.read(key: userQRKey);
+    } catch (e) {
+      return null;
+    }
   }
 }

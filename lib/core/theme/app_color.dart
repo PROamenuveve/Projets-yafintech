@@ -31,10 +31,11 @@ class AppColors {
   // personalisé
   static const Color couleur1 = Color.fromARGB(255, 154, 1, 162);
   static const Color couleur11 = Color.fromARGB(255, 234, 67, 243);
-  static const Color couleur2 = Color.fromARGB(255, 6, 190, 83);
+  static const Color couleur2 = Color.fromARGB(255, 3, 171, 177);
   static const Color couleur21 = Color.fromARGB(255, 82, 245, 150);
   static const Color couleur3 = Color.fromARGB(255, 182, 195, 3);
   static const Color couleur31 = Color.fromARGB(255, 231, 242, 82);
+  static const Color couleur4 = Color.fromARGB(255, 108, 99, 255);
 
   // Gradients
   static const LinearGradient primaryGradient = LinearGradient(

@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:yafintech/core/theme/app_color.dart';
 import 'package:yafintech/screen/fenetre/chatIA.dart';
-import 'package:yafintech/screen/fenetre/chatlist.dart';
 import 'package:yafintech/screen/fenetre/chatlistIA.dart';
 import 'package:yafintech/screen/fenetre/profile.dart';
 import 'package:yafintech/screen/home_screen/evenement.dart';
@@ -26,7 +25,7 @@ class _HomePageState extends State<HomePage> {
 
   final List<Widget> _fenetres = <Widget>[
     Acceuil(),
-    ChatListPage(),
+    DiscussionPage(),
     ChatIAPage(),
     EventPage(),
     //Onglets(),
@@ -51,8 +50,6 @@ class _HomePageState extends State<HomePage> {
       if (data != null) {
         setState(() {
           unRead = data['unread_count'];
-
-          print('🚠🚠🚠🚠🚠🚠🚠🚠🚠🚠 :$unRead');
         });
       } else {
         setState(() {

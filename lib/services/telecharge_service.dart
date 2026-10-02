@@ -11,7 +11,6 @@ Future<void> sauvegarderDansGalerie(String imageUrl, String imageName) async {
     final response = await http.get(Uri.parse(imageUrl));
     if (response.statusCode == 200) {
       await Gal.putImageBytes(response.bodyBytes, name: imageName);
-      print('Image sauvegardée dans la galerie !');
 
       const SnackBar(
         content: Text('video Télécharger'),

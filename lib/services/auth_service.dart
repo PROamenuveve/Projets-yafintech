@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:yafintech/screen/fenetre/home.dart';
 import 'package:yafintech/services/secure_storage.dart';
 
-String baseurl = "http://192.168.1.73:8000";
+String baseurl = "http://192.168.1.69:8000";
 String storageUrl = '$baseurl/storage';
 
 Future<Map<String, dynamic>> getUser() async {
@@ -37,7 +37,7 @@ Future<bool> checkconnecte() async {
 }
 
 Future<bool> login(String email, String password) async {
-  print("$email,  🧶🧶🧶🧶🧶🧶🧶  $password ");
+  // print("$email,  🧶🧶🧶🧶🧶🧶🧶  $password ");
   try {
     final response = await http.post(
       Uri.parse("$baseurl/api/login"),
@@ -52,15 +52,15 @@ Future<bool> login(String email, String password) async {
 
     if (response.statusCode == 200) {
       final token = data['token'];
-      print('Connexion réussie');
+      //print('Connexion réussie');
       print('Token : $token');
-      print(data['user']);
+      //print(data['user']);
 
       await SecureStorageService.saveTokens(accessToken: token);
       await SecureStorageService.saveUser(accessUser: jsonEncode(data['user']));
       return (true);
     } else {
-      print(data['message'] ?? 'Identifiants incorrects');
+      //print(data['message'] ?? 'Identifiants incorrects');
       return (false);
     }
   } catch (e) {
@@ -84,18 +84,18 @@ Future<String> register(Map<String, dynamic> donnes) async {
 
     if (response.statusCode == 201) {
       final token = data['token'];
-      print('Inscription  réussie');
+      //print('Inscription  réussie');
       print('Token : $token');
-      print(data['user']);
+      //print(data['user']);
       await SecureStorageService.saveTokens(accessToken: token);
       await SecureStorageService.saveUser(accessUser: jsonEncode(data['user']));
-      final gg = response.statusCode;
-      print('🔗🔗🔗🔗🔗🔗🔗🔗🔗🔗🔗🔗🔗 $gg');
+      //final gg = response.statusCode;
+      //print('🔗🔗🔗🔗🔗🔗🔗🔗🔗🔗🔗🔗🔗 $gg');
       return data['message'];
     } else {
-      print('♦️♦️♦️♦️♦️♦️♦️♦️♦️♦️♦️♦️');
+      // print('♦️♦️♦️♦️♦️♦️♦️♦️♦️♦️♦️♦️');
 
-      print(data['message'] ?? "erreur l'ors de l'incscription ");
+      //print(data['message'] ?? "erreur l'ors de l'incscription ");
       return data['message'];
     }
   } catch (e) {
@@ -105,8 +105,8 @@ Future<String> register(Map<String, dynamic> donnes) async {
 }
 
 Future<void> register_Menber(Map<String, dynamic> donnes) async {
-  Map nn = donnes;
-  print('$nn 🧶🧶🧶🧶🧶');
+  // Map nn = donnes;
+  //print('$nn 🧶🧶🧶🧶🧶');
   try {
     final response = await http.post(
       Uri.parse('$baseurl/api/members'),
@@ -121,11 +121,11 @@ Future<void> register_Menber(Map<String, dynamic> donnes) async {
 
     if (response.statusCode == 201) {
       final token = data['token'];
-      print('Inscription de menbre réussie');
+      //  print('Inscription de menbre réussie');
       print('Token : $token');
       //return true;
     } else {
-      print(data['message'] ?? "erreur l'ors de l'incscription ");
+      //print(data['message'] ?? "erreur l'ors de l'incscription ");
       //return false;
     }
   } catch (e) {
@@ -149,7 +149,7 @@ Future<void> role_fonction() async {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
 
-      print('🤖🤖🤖🤖🤖🤖🤖🤖🤖🤖');
+      // print('🤖🤖🤖🤖🤖🤖🤖🤖🤖🤖');
       print(data);
     } else {
       print('Erreur : ${response.statusCode}');
@@ -165,9 +165,7 @@ Future<int> Qr_presence(String qr, double latitude, double longitude) async {
 
   final jsUser = jsonDecode(user ?? '{}');
 
-  print(
-    "👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻 $jsUser",
-  );
+  // print("👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻👩‍💻 $jsUser",);
   try {
     final response = await http.post(
       Uri.parse('$baseurl/api/attendance/scan-public'),
@@ -182,7 +180,7 @@ Future<int> Qr_presence(String qr, double latitude, double longitude) async {
         'lng': longitude,
       }),
     );
-    print('🤖🤖🤖🤖🤖🤖🤖🤖🤖🤖  ${response.statusCode}');
+    // print('🤖🤖🤖🤖🤖🤖🤖🤖🤖🤖  ${response.statusCode}');
     if (response.statusCode == 201) {
       final data = jsonDecode(response.body);
 
@@ -221,8 +219,8 @@ Future<void> updateProfile(Map<String, dynamic> updatedData) async {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      print('Profil mis à jour avec succès');
-      print(data);
+      //print('Profil mis à jour avec succès');
+      ///print(data);
       // Mettre à jour les informations de l'utilisateur dans le stockage sécurisé
       await SecureStorageService.saveUser(accessUser: jsonEncode(data['user']));
     } else {
@@ -276,13 +274,11 @@ Future<Map<String, dynamic>> getRessources() async {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      print('Ressources récupérées avec succès');
-      print(data);
+      //print('Ressources récupérées avec succès');
+      //print(data);
       return data;
     } else {
-      print(
-        'Erreur lors de la récupération des ressources : ${response.statusCode}',
-      );
+      //print( 'Erreur lors de la récupération des ressources : ${response.statusCode}', );
       print(response.body);
       return {'error': 'Erreur lors de la récupération des ressources'};
     }
@@ -308,7 +304,7 @@ Future<void> resourceCategorie() async {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
 
-      print('🤖🤖🤖🤖🤖🤖🤖🤖🤖🤖');
+      //print('🤖🤖🤖🤖🤖🤖🤖🤖🤖🤖');
       print(data);
     } else {
       print('Erreur : ${response.statusCode}');
@@ -335,44 +331,77 @@ Future<void> sendMsg(int id, String msg) async {
     if (response.statusCode == 200 || response.statusCode == 201) {
       final data = jsonDecode(response.body);
 
-      print('🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️');
-      print(data);
+      //print('🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️');
+      //print(data);
     } else {
-      print('🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️');
+      //print('🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️');
       print('Erreur : ${response.statusCode}');
-      print(response.body);
+      // print(response.body);
     }
   } catch (e) {
-    print('🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️');
+    //print('🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️');
     print('Erreur réseau : $e');
   }
 }
 
-Future<void> sendIaMsg(int id, String msg) async {
+Future<Map<String, dynamic>> newIADisc(String msg) async {
+  //print( '🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️',);
   try {
     final response = await http.post(
-      Uri.parse('$baseurl/api/chat/messages'),
+      Uri.parse('$baseurl/api/assistant/conversations'),
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ${await geToken()}',
       },
 
-      body: jsonEncode({"recipient_id": id, "contenu": msg}),
+      body: jsonEncode({"titre": msg}),
     );
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       final data = jsonDecode(response.body);
 
-      print('🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️');
-      print(data);
+      //print('🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️');
+      // print(data);
+      return data;
     } else {
-      print('🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️');
+      //print('🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️');
       print('Erreur : ${response.statusCode}');
-      print(response.body);
+      //print(response.body);
+      return {'error': 'Erreur lors de la création de la conversation'};
     }
   } catch (e) {
-    print('🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️');
+    //print('🗞️🗞️🗞️🗞️🗞️🗞️🗞️🗞️');
+    print('Erreur réseau : $e');
+    return {'error': 'Erreur réseau'};
+  }
+}
+
+Future<void> sendIAMsg(int id, String msg) async {
+  try {
+    final response = await http.post(
+      Uri.parse('$baseurl/api/assistant/conversations/$id/messages'),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${await geToken()}',
+      },
+
+      body: jsonEncode({"contenu": msg}),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = jsonDecode(response.body);
+
+      //print('🛞🛞🛞🛞🛞🛞🛞🛞🛞');
+      //print(data);
+    } else {
+      //print('🛞🛞🛞🛞🛞🛞🛞🛞🛞🛞🛞🛞');
+      print('Erreur : ${response.statusCode}');
+      //print(response.body);
+    }
+  } catch (e) {
+    //print('🛞🛞🛞🛞🛞🛞🛞🛞🛞🛞🛞🛞');
     print('Erreur réseau : $e');
   }
 }

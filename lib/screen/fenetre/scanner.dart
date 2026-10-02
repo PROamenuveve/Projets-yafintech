@@ -25,7 +25,7 @@ class _ScannerPageState extends State<ScannerPage> {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
     if (!serviceEnabled) {
-      print('La localisation est désactivée');
+      //print('La localisation est désactivée');
       return null;
     }
 
@@ -36,13 +36,12 @@ class _ScannerPageState extends State<ScannerPage> {
       permission = await Geolocator.requestPermission();
 
       if (permission == LocationPermission.denied) {
-        print('Permission refusée');
+        //print('Permission refusée');
         return null;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      print('Permission refusée définitivement');
       return null;
     }
 
@@ -92,11 +91,6 @@ class _ScannerPageState extends State<ScannerPage> {
                       }
                       final position = await getCurrentLocation();
 
-                      if (position != null) {
-                        print('🐩🐩🐩🐩🐩🐩🐩🐩🐩🐩🐩🐩🐩🐩🐩🐩');
-                        print('Latitude : ${position.latitude}');
-                        print('Longitude : ${position.longitude}');
-                      }
                       final presence = await Qr_presence(
                         jsValue['t'],
                         position!.latitude,

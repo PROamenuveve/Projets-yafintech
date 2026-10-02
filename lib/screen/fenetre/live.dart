@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import 'package:yafintech/services/reload_service.dart';
 
 class LivePages extends StatefulWidget {
   const LivePages({super.key});
@@ -17,6 +18,10 @@ class _LivePagesState extends State<LivePages> {
     'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_1MB.mp4',
     'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
   ];
+
+  final LiveService _liveService = LiveService();
+  Map<String, dynamic>? _liveData;
+  StreamSubscription? _streamSubscription;
 
   final PageController _pageController = PageController();
 
@@ -35,10 +40,25 @@ class _LivePagesState extends State<LivePages> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        print('🚀 INIT : Chargement de la première vidéo');
+        //print('🚀 INIT : Chargement de la première vidéo');
         _startVideo(0);
       }
     });
+
+    _streamSubscription = _liveService.liveStream.listen((data) {
+      if (!mounted) return;
+
+      setState(() {
+        if (data == null) {
+          _liveData = {};
+        }
+        _liveData = data;
+
+        //print('💫💫  :  $_liveData');
+      });
+    });
+
+    _liveService.demarrer(interval: const Duration(seconds: 10));
   }
 
   // ------------------------------------------------------------
@@ -60,7 +80,7 @@ class _LivePagesState extends State<LivePages> {
     if (oldController != null) {
       try {
         await oldController.dispose();
-        print('🗑️ Ancien controller disposé');
+        //print('🗑️ Ancien controller disposé');
       } catch (e) {
         print('⚠️ Dispose ancien : $e');
       }
@@ -83,7 +103,7 @@ class _LivePagesState extends State<LivePages> {
         throw Exception('URL invalide');
       }
 
-      print('📡 Création du controller...');
+      // print('📡 Création du controller...');
 
       newController = VideoPlayerController.networkUrl(
         uri,
@@ -97,18 +117,18 @@ class _LivePagesState extends State<LivePages> {
         },
       );
 
-      print('⏳ Initialisation (timeout 20s)...');
+      //print('⏳ Initialisation (timeout 20s)...');
       final startTime = DateTime.now();
 
       await newController.initialize().timeout(const Duration(seconds: 20));
 
       final duration = DateTime.now().difference(startTime);
-      print('✅ Initialisé en ${duration.inMilliseconds}ms');
-      print('   📐 Taille : ${newController.value.size}');
-      print('   ⏱️ Durée : ${newController.value.duration}');
+      //print('✅ Initialisé en ${duration.inMilliseconds}ms');
+      //print('   📐 Taille : ${newController.value.size}');
+      //print('   ⏱️ Durée : ${newController.value.duration}');
 
       if (!mounted || request != _requestId) {
-        print('⚠️ Requête annulée (nouvelle requête en cours)');
+        //print('⚠️ Requête annulée (nouvelle requête en cours)');
         try {
           await newController.dispose();
         } catch (_) {}
@@ -125,16 +145,16 @@ class _LivePagesState extends State<LivePages> {
         _hasError = false;
       });
 
-      print('▶️ Lancement de la lecture...');
+      // print('▶️ Lancement de la lecture...');
       try {
         await _controller?.setLooping(true);
         await _controller?.play();
-        print('✅ Lecture démarrée');
+        //print('✅ Lecture démarrée');
       } catch (e) {
         print('⚠️ Erreur play : $e');
       }
     } on TimeoutException {
-      print('❌ TIMEOUT après 20s');
+      //print('❌ TIMEOUT après 20s');
 
       if (newController != null) {
         try {
@@ -183,7 +203,7 @@ class _LivePagesState extends State<LivePages> {
   void _onPageChanged(int index) {
     if (index == _currentIndex) return;
 
-    print('📄 Changement de page : $index');
+    //print('📄 Changement de page : $index');
 
     setState(() {
       _currentIndex = index;
@@ -199,7 +219,6 @@ class _LivePagesState extends State<LivePages> {
 
   @override
   void dispose() {
-    print('🗑️ Dispose LivePages');
     _requestId++;
     _pageController.dispose();
 
@@ -213,6 +232,9 @@ class _LivePagesState extends State<LivePages> {
         print('⚠️ Dispose final : $e');
       }
     }
+
+    _streamSubscription?.cancel();
+    _liveService.arreter();
 
     super.dispose();
   }

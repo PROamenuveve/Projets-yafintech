@@ -18,6 +18,7 @@ class QrCodePage extends StatefulWidget {
 
 class _QrCodePageState extends State<QrCodePage> {
   Map<String, dynamic> jsUser = {};
+  String? qrCodeData;
   void getUser() async {
     if (mounted) {
       final data = await SecureStorageService.getAccessUser();
@@ -29,8 +30,8 @@ class _QrCodePageState extends State<QrCodePage> {
       setState(() {
         jsUser = jsonDecode(data ?? '{}');
       });
-      print('💀💀💀💀💀💀💀💀');
-      print(jsUser['member']['member_code']);
+      //print('💀💀💀💀💀💀💀💀');
+      //print(jsUser['member']['member_code']);
     }
   }
 
@@ -39,6 +40,12 @@ class _QrCodePageState extends State<QrCodePage> {
     getUser();
 
     super.initState();
+  }
+
+  void getQrCode() async {
+    qrCodeData = await SecureStorageService.getQR();
+    print('💀💀💀💀💀💀💀💀');
+    print(qrCodeData);
   }
 
   @override
@@ -69,7 +76,7 @@ class _QrCodePageState extends State<QrCodePage> {
                   ],
                 ),
                 child: QrImageView(
-                  data: jsUser['member']?['member_code'] ?? 'null',
+                  data: qrCodeData ?? 'null',
                   version: QrVersions.auto,
                   size: 220,
                   backgroundColor: Colors.white,

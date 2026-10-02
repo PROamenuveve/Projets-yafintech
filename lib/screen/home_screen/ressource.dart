@@ -36,7 +36,7 @@ class _RessourceState extends State<Ressource> {
           } else {
             ressourcesData = data as Map<String, dynamic>;
           }
-          print('🧮🧮🧮🧮🧮🧮🧮🧮🧮  : ressourcesData');
+          print('🧮  : ressourcesData');
         });
       } else {
         // Si data est null (204/404), on vide les données

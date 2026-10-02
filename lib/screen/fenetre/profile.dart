@@ -574,7 +574,7 @@ class _ProfilScreenState extends State<ProfilePage> {
     setState(() {
       newUser['member']?['first_name'] = controller.text;
       newUser['member']?['last_name'] = controllerlast.text;
-      print('🏈🏈🏈🏈🏈🏈🏈🏈🏈🏈🏈🏈🏈');
+      print('🏈 ');
     });
   }
 

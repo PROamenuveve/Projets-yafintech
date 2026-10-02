@@ -53,7 +53,7 @@ class LiveServiceActive {
 
   Future<void> _fetchActiveLive() async {
     try {
-      print('$baseurl/api/live-streams/active');
+      //('$baseurl/api/live-streams/active');
       final tkn = await geToken();
       final response = await http
           .get(
@@ -146,10 +146,10 @@ class LiveService {
     );
 
     // Premier appel immédiat
-    _fetchActiveLive();
+    _fetchLive();
 
     // Puis appels réguliers
-    _pollingTimer = Timer.periodic(interval, (_) => _fetchActiveLive());
+    _pollingTimer = Timer.periodic(interval, (_) => _fetchLive());
   }
 
   // ------------------------------------------------------------
@@ -167,7 +167,7 @@ class LiveService {
   // APPEL API
   // ------------------------------------------------------------
 
-  Future<void> _fetchActiveLive() async {
+  Future<void> _fetchLive() async {
     try {
       final tkn = await geToken();
       final response = await http
@@ -223,7 +223,7 @@ class LiveService {
   // ------------------------------------------------------------
 
   Future<void> refresh() async {
-    await _fetchActiveLive();
+    await _fetchLive();
   }
 
   // ------------------------------------------------------------
@@ -807,7 +807,7 @@ class msgId(int id) {
   }
 }
 
-class msgIAId() {
+class convIA() {
   Timer? _pollingTimer;
 
   final _msiaidController = StreamController<dynamic>.broadcast();
@@ -881,6 +881,83 @@ class msgIAId() {
   void dispose() {
     arreter();
     _msiaidController.close();
+  }
+}
+
+class chatIA(int id) {
+  var id = id;
+  Timer? _pollingTimer;
+
+  final _chatiaController = StreamController<dynamic>.broadcast();
+
+  Stream<dynamic> get chatiaStream => _chatiaController.stream;
+
+  dynamic _currentChatia;
+  dynamic get currentChatia => _currentChatia;
+
+  bool _isPolling = false;
+
+  void demarrer({Duration interval = const Duration(seconds: 2)}) {
+    if (_isPolling) return;
+    _isPolling = true;
+
+    debugPrint('▶️ Démarrage du polling (toutes les ${interval.inSeconds}s)');
+    _fetchchatia();
+    _pollingTimer = Timer.periodic(interval, (_) => _fetchchatia());
+  }
+
+  void arreter() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+    _isPolling = false;
+    debugPrint('⏹️ Arrêt du polling');
+  }
+
+  Future<void> _fetchchatia() async {
+    try {
+      final tkn = await geToken();
+      final response = await http
+          .get(
+            Uri.parse('$baseurl/api/assistant/conversations/$id'),
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $tkn',
+            },
+          )
+          .timeout(const Duration(seconds: 4));
+
+      //if (_msidController.isClosed) return;
+      if (response.statusCode == 200) {
+        // ✅ Ne pas forcer le typage en Map, accepter le dynamic
+        //print(response.body);
+        final dynamic data = jsonDecode(response.body);
+        _currentChatia = data;
+
+        if (!_chatiaController.isClosed) {
+          _chatiaController.add(data);
+          //print(_currentMsid);
+        }
+      } else if (response.statusCode == 204 || response.statusCode == 404) {
+        _currentChatia = null;
+        if (!_chatiaController.isClosed) {
+          _chatiaController.add(null);
+        }
+      } else {
+        debugPrint('❌ Erreur API : ${response.statusCode}');
+      }
+    } on TimeoutException {
+      debugPrint('⏱️ Timeout lors du fetch');
+    } catch (e) {
+      debugPrint('❌ Exception : $e');
+    }
+  }
+
+  Future<void> refresh() async => await _fetchchatia();
+
+  void dispose() {
+    arreter();
+    _chatiaController.close();
   }
 }
 
